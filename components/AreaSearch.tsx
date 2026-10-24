@@ -16,6 +16,10 @@ interface LocationSuggestion {
   state: string;
   country: string;
   displayName: string;
+  latitude?: number;
+  longitude?: number;
+  osmType?: string;
+  osmId?: number | null;
 }
 
 interface AreaSearchProps {
@@ -75,7 +79,7 @@ export function AreaSearch({
       } finally {
         setSearchingLocations(false);
       }
-    }, 180);
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [areaInput]);
@@ -120,8 +124,8 @@ export function AreaSearch({
       name: areaInput.trim(),
       district: areaInput.trim(),
       state: '',
-      country: 'India',
-      displayName: `${areaInput.trim()}, India`,
+      country: '',
+      displayName: areaInput.trim(),
     };
 
     setShowSuggestions(false);
@@ -143,29 +147,43 @@ export function AreaSearch({
     setAreaInput(suggestion.name);
     setSelectedLocation(suggestion);
     setShowSuggestions(false);
+    onSearch(suggestion);
   };
 
-  const handleQuickSearch = (qArea: string) => {
+  const handleQuickSearch = (item: {
+    name: string;
+    district: string;
+    state: string;
+    country: string;
+    lat: number;
+    lon: number;
+  }) => {
     const quickLocation: LocationSuggestion = {
-      name: qArea,
-      district: qArea,
-      state: '',
-      country: 'India',
-      displayName: `${qArea}, India`,
+      name: item.name,
+      district: item.district,
+      state: item.state,
+      country: item.country,
+      latitude: item.lat,
+      longitude: item.lon,
+      displayName: `${item.name}, ${item.country}`,
     };
 
-    setAreaInput(qArea);
+    setAreaInput(item.name);
     setSelectedLocation(quickLocation);
     setShowSuggestions(false);
     onSearch(quickLocation);
   };
 
   const quickAreas = [
-    'Pune',
-    'Mumbai',
-    'Nashik',
-    'Delhi',
-    'Bengaluru',
+    { name: 'Pune', district: 'Pune', state: 'Maharashtra', country: 'India', lat: 18.5204, lon: 73.8567 },
+    { name: 'Bengaluru', district: 'Bangalore Urban', state: 'Karnataka', country: 'India', lat: 12.9716, lon: 77.5946 },
+    { name: 'Mumbai', district: 'Mumbai Suburban', state: 'Maharashtra', country: 'India', lat: 19.0760, lon: 72.8777 },
+    { name: 'Delhi', district: 'Delhi', state: 'Delhi', country: 'India', lat: 28.6139, lon: 77.2090 },
+    { name: 'Jaipur', district: 'Jaipur', state: 'Rajasthan', country: 'India', lat: 26.9124, lon: 75.7873 },
+    { name: 'Tokyo', district: 'Tokyo', state: 'Tookyoo', country: 'Japan', lat: 35.6762, lon: 139.6503 },
+    { name: 'London', district: 'Greater London', state: 'England', country: 'United Kingdom', lat: 51.5074, lon: -0.1278 },
+    { name: 'Paris', district: 'Paris', state: 'Ile-de-France', country: 'France', lat: 48.8566, lon: 2.3522 },
+    { name: 'New York', district: 'New York', state: 'New York', country: 'United States', lat: 40.7128, lon: -74.0060 },
   ];
 
   return (
@@ -187,7 +205,7 @@ export function AreaSearch({
                 }
               }}
               disabled={isLoading}
-              placeholder="Search any Indian city..."
+              placeholder="Search any city worldwide..."
               autoComplete="off"
               className="w-full bg-transparent py-3 px-2 text-white placeholder-zinc-500 text-sm sm:text-base focus:outline-none disabled:opacity-50"
             />
@@ -221,7 +239,7 @@ export function AreaSearch({
         {showSuggestions && suggestions.length > 0 && (
           <div className="absolute z-50 left-0 right-0 mt-2 overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/95 backdrop-blur-xl shadow-2xl">
             <div className="px-4 py-2 border-b border-white/5 text-[10px] font-mono text-zinc-500">
-              INDIAN LOCATIONS
+              GLOBAL LOCATIONS
             </div>
 
             {suggestions.map((suggestion, index) => (
@@ -241,7 +259,7 @@ export function AreaSearch({
                   </p>
 
                   <p className="text-xs text-zinc-500 truncate">
-                    {suggestion.district}, {suggestion.state}, India
+                    {[suggestion.district, suggestion.state, suggestion.country].filter(Boolean).join(', ')}
                   </p>
                 </div>
               </button>
@@ -279,15 +297,15 @@ export function AreaSearch({
           QUICK SEARCH:
         </span>
 
-        {quickAreas.map((qArea) => (
+        {quickAreas.map((item) => (
           <button
-            key={qArea}
+            key={item.name}
             type="button"
-            onClick={() => handleQuickSearch(qArea)}
+            onClick={() => handleQuickSearch(item)}
             disabled={isLoading}
             className="px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.08] text-zinc-300 hover:text-eco-neon hover:border-eco-neon/40 hover:bg-eco-neon/10 transition-all font-mono text-xs disabled:opacity-50"
           >
-            {qArea}
+            {item.name}
           </button>
         ))}
       </div>
@@ -300,8 +318,8 @@ export function AreaSearch({
             <p className="font-medium">{errorMessage}</p>
 
             <p className="text-xs text-rose-400/80 font-mono">
-              Search results use the project's Indian city database and
-              analysis uses the corresponding administrative district.
+              Search results use global location search. Analysis depends on
+              finding a matching administrative boundary.
             </p>
           </div>
         </div>

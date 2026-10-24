@@ -3,7 +3,7 @@ import { analyzeAreaNdvi } from '@/lib/ndvi';
 import { isEarthEngineConfigured } from '@/lib/earthengine';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60; // Allow sufficient time for satellite processing
+export const maxDuration = 60; // 60 seconds satellite processing time window
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,37 +34,67 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const area = body?.area;
+    const area = body?.area || body?.district;
     if (!area || typeof area !== 'string' || area.trim().length === 0) {
       return NextResponse.json(
         {
-          error: 'Please provide an area name. Example: "Pune"',
+          error: 'Please provide an area or city name. Example: "Pune", "Bengaluru", or "Tokyo"',
           code: 'MISSING_AREA',
         },
         { status: 400 }
       );
     }
 
+    // Extract coordinates if provided
+    let coordinates: { latitude: number; longitude: number } | undefined = undefined;
+    if (
+      body.coordinates &&
+      typeof body.coordinates.latitude === 'number' &&
+      typeof body.coordinates.longitude === 'number' &&
+      !Number.isNaN(body.coordinates.latitude) &&
+      !Number.isNaN(body.coordinates.longitude)
+    ) {
+      coordinates = {
+        latitude: body.coordinates.latitude,
+        longitude: body.coordinates.longitude,
+      };
+    } else if (
+      typeof body.latitude === 'number' &&
+      typeof body.longitude === 'number' &&
+      !Number.isNaN(body.latitude) &&
+      !Number.isNaN(body.longitude)
+    ) {
+      coordinates = {
+        latitude: body.latitude,
+        longitude: body.longitude,
+      };
+    }
+
     // 3. Execute Earth Engine analysis
-    const result = await analyzeAreaNdvi(area.trim());
+    const result = await analyzeAreaNdvi(area.trim(), {
+      coordinates,
+      district: typeof body?.district === 'string' ? body.district.trim() : undefined,
+      state: typeof body?.state === 'string' ? body.state.trim() : undefined,
+      country: typeof body?.country === 'string' ? body.country.trim() : undefined,
+    });
 
     return NextResponse.json(result, { status: 200 });
   } catch (error: any) {
     const errorMessage = error?.message || 'An unexpected error occurred during satellite NDVI analysis.';
     console.error('API /api/ndvi error:', error);
 
-    // Prompt requirement: "If area is not found, return: Area not found. Try a district name such as Pune."
+    // If area boundary is not found
     if (errorMessage.includes('Area not found') || errorMessage.includes('boundary not found')) {
       return NextResponse.json(
         {
-          error: 'Area not found. Try a district name such as Pune.',
+          error: 'Area not found. Try a district or city name such as Pune, Bengaluru, or Tokyo.',
           code: 'AREA_NOT_FOUND',
         },
         { status: 404 }
       );
     }
 
-    // Prompt requirement: "If Earth Engine fails, return a useful server error."
+    // If Earth Engine authentication or API fails
     if (
       errorMessage.includes('Earth Engine') ||
       errorMessage.includes('authenticateViaPrivateKey') ||

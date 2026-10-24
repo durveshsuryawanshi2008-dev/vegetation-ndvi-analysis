@@ -21,6 +21,8 @@ interface SelectedLocation {
   state: string;
   country: string;
   displayName: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export default function HomePage() {
@@ -31,6 +33,8 @@ export default function HomePage() {
       state: 'Maharashtra',
       country: 'India',
       displayName: 'Pune, Maharashtra, India',
+      latitude: 18.5204,
+      longitude: 73.8567,
     });
 
   const [analysisData, setAnalysisData] =
@@ -64,7 +68,18 @@ export default function HomePage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          area: location.district,
+          area: location.name || location.district,
+          district: location.district,
+          state: location.state,
+          country: location.country,
+          coordinates:
+            typeof location.latitude === 'number' &&
+            typeof location.longitude === 'number'
+              ? {
+                  latitude: location.latitude,
+                  longitude: location.longitude,
+                }
+              : undefined,
         }),
       });
 

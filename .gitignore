@@ -28,6 +28,12 @@ dist/
 !package-lock.json
 !tsconfig.json
 !jsconfig.json
+!vercel.json
+!lib/data/indian-cities.json
+!data/indian-cities.json
+
+tsconfig.tsbuildinfo
+*.zip
 service-account*.json
 credentials*.json
 gee-key*.json

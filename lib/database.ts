@@ -325,13 +325,12 @@ export async function getCachedAnalysis(
          a.area_km2
        FROM analysis_requests ar
        INNER JOIN areas a ON ar.area_id = a.id
-       WHERE LOWER(a.name) = ?
+       WHERE (LOWER(a.name) = ? OR LOWER(ar.requested_area_name) = ? OR LOWER(a.normalized_name) = ?)
          AND ar.status = 'COMPLETED'
          AND ar.satellite_source = ?
-         AND ar.boundary_source = ?
        ORDER BY ar.completed_at DESC
        LIMIT 1`,
-      [normalizedName, satelliteSource, boundarySource]
+      [normalizedName, normalizedName, normalizedName, satelliteSource]
     );
 
     if (!requestRows || requestRows.length === 0) {

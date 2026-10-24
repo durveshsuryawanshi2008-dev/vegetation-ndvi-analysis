@@ -1,0 +1,464 @@
+[
+  {
+    "name": "Mumbai",
+    "district": "Mumbai",
+    "state": "Maharashtra",
+    "latitude": 19.076,
+    "longitude": 72.8777
+  },
+  {
+    "name": "Pune",
+    "district": "Pune",
+    "state": "Maharashtra",
+    "latitude": 18.5204,
+    "longitude": 73.8567
+  },
+  {
+    "name": "Pimpri-Chinchwad",
+    "district": "Pune",
+    "state": "Maharashtra",
+    "latitude": 18.6298,
+    "longitude": 73.7997
+  },
+  {
+    "name": "Nashik",
+    "district": "Nashik",
+    "state": "Maharashtra",
+    "latitude": 19.9975,
+    "longitude": 73.7898
+  },
+  {
+    "name": "Nagpur",
+    "district": "Nagpur",
+    "state": "Maharashtra",
+    "latitude": 21.1458,
+    "longitude": 79.0882
+  },
+  {
+    "name": "Thane",
+    "district": "Thane",
+    "state": "Maharashtra",
+    "latitude": 19.2183,
+    "longitude": 72.9781
+  },
+  {
+    "name": "Navi Mumbai",
+    "district": "Thane",
+    "state": "Maharashtra",
+    "latitude": 19.033,
+    "longitude": 73.0297
+  },
+  {
+    "name": "Aurangabad",
+    "district": "Aurangabad",
+    "state": "Maharashtra",
+    "latitude": 19.8762,
+    "longitude": 75.3433
+  },
+  {
+    "name": "Kolhapur",
+    "district": "Kolhapur",
+    "state": "Maharashtra",
+    "latitude": 16.705,
+    "longitude": 74.2433
+  },
+  {
+    "name": "Satara",
+    "district": "Satara",
+    "state": "Maharashtra",
+    "latitude": 17.6805,
+    "longitude": 74.0183
+  },
+  {
+    "name": "Solapur",
+    "district": "Solapur",
+    "state": "Maharashtra",
+    "latitude": 17.6599,
+    "longitude": 75.9064
+  },
+  {
+    "name": "Sangli",
+    "district": "Sangli",
+    "state": "Maharashtra",
+    "latitude": 16.8524,
+    "longitude": 74.5815
+  },
+  {
+    "name": "Ahmednagar",
+    "district": "Ahmednagar",
+    "state": "Maharashtra",
+    "latitude": 19.0948,
+    "longitude": 74.748
+  },
+  {
+    "name": "Dhule",
+    "district": "Dhule",
+    "state": "Maharashtra",
+    "latitude": 20.9042,
+    "longitude": 74.7749
+  },
+  {
+    "name": "Jalgaon",
+    "district": "Jalgaon",
+    "state": "Maharashtra",
+    "latitude": 21.0077,
+    "longitude": 75.5626
+  },
+  {
+    "name": "Nanded",
+    "district": "Nanded",
+    "state": "Maharashtra",
+    "latitude": 19.1383,
+    "longitude": 77.321
+  },
+  {
+    "name": "Delhi",
+    "district": "Delhi",
+    "state": "Delhi",
+    "latitude": 28.6139,
+    "longitude": 77.209
+  },
+  {
+    "name": "New Delhi",
+    "district": "New Delhi",
+    "state": "Delhi",
+    "latitude": 28.6139,
+    "longitude": 77.209
+  },
+  {
+    "name": "Bengaluru",
+    "district": "Bangalore Urban",
+    "state": "Karnataka",
+    "latitude": 12.9716,
+    "longitude": 77.5946
+  },
+  {
+    "name": "Mysuru",
+    "district": "Mysore",
+    "state": "Karnataka",
+    "latitude": 12.2958,
+    "longitude": 76.6394
+  },
+  {
+    "name": "Mangaluru",
+    "district": "Dakshina Kannada",
+    "state": "Karnataka",
+    "latitude": 12.9141,
+    "longitude": 74.856
+  },
+  {
+    "name": "Hubballi",
+    "district": "Dharwad",
+    "state": "Karnataka",
+    "latitude": 15.3647,
+    "longitude": 75.124
+  },
+  {
+    "name": "Belagavi",
+    "district": "Belgaum",
+    "state": "Karnataka",
+    "latitude": 15.8497,
+    "longitude": 74.4977
+  },
+  {
+    "name": "Hyderabad",
+    "district": "Hyderabad",
+    "state": "Telangana",
+    "latitude": 17.385,
+    "longitude": 78.4867
+  },
+  {
+    "name": "Warangal",
+    "district": "Warangal",
+    "state": "Telangana",
+    "latitude": 17.9689,
+    "longitude": 79.5941
+  },
+  {
+    "name": "Chennai",
+    "district": "Chennai",
+    "state": "Tamil Nadu",
+    "latitude": 13.0827,
+    "longitude": 80.2707
+  },
+  {
+    "name": "Coimbatore",
+    "district": "Coimbatore",
+    "state": "Tamil Nadu",
+    "latitude": 11.0168,
+    "longitude": 76.9558
+  },
+  {
+    "name": "Madurai",
+    "district": "Madurai",
+    "state": "Tamil Nadu",
+    "latitude": 9.9252,
+    "longitude": 78.1198
+  },
+  {
+    "name": "Salem",
+    "district": "Salem",
+    "state": "Tamil Nadu",
+    "latitude": 11.6643,
+    "longitude": 78.146
+  },
+  {
+    "name": "Kochi",
+    "district": "Ernakulam",
+    "state": "Kerala",
+    "latitude": 9.9312,
+    "longitude": 76.2673
+  },
+  {
+    "name": "Thiruvananthapuram",
+    "district": "Thiruvananthapuram",
+    "state": "Kerala",
+    "latitude": 8.5241,
+    "longitude": 76.9366
+  },
+  {
+    "name": "Kozhikode",
+    "district": "Kozhikode",
+    "state": "Kerala",
+    "latitude": 11.2588,
+    "longitude": 75.7804
+  },
+  {
+    "name": "Munnar",
+    "district": "Idukki",
+    "state": "Kerala",
+    "latitude": 10.0889,
+    "longitude": 77.0595
+  },
+  {
+    "name": "Ahmedabad",
+    "district": "Ahmedabad",
+    "state": "Gujarat",
+    "latitude": 23.0225,
+    "longitude": 72.5714
+  },
+  {
+    "name": "Surat",
+    "district": "Surat",
+    "state": "Gujarat",
+    "latitude": 21.1702,
+    "longitude": 72.8311
+  },
+  {
+    "name": "Vadodara",
+    "district": "Vadodara",
+    "state": "Gujarat",
+    "latitude": 22.3072,
+    "longitude": 73.1812
+  },
+  {
+    "name": "Rajkot",
+    "district": "Rajkot",
+    "state": "Gujarat",
+    "latitude": 22.3039,
+    "longitude": 70.8022
+  },
+  {
+    "name": "Gandhinagar",
+    "district": "Gandhinagar",
+    "state": "Gujarat",
+    "latitude": 23.2156,
+    "longitude": 72.6369
+  },
+  {
+    "name": "Jaipur",
+    "district": "Jaipur",
+    "state": "Rajasthan",
+    "latitude": 26.9124,
+    "longitude": 75.7873
+  },
+  {
+    "name": "Jodhpur",
+    "district": "Jodhpur",
+    "state": "Rajasthan",
+    "latitude": 26.2389,
+    "longitude": 73.0243
+  },
+  {
+    "name": "Udaipur",
+    "district": "Udaipur",
+    "state": "Rajasthan",
+    "latitude": 24.5854,
+    "longitude": 73.7125
+  },
+  {
+    "name": "Kota",
+    "district": "Kota",
+    "state": "Rajasthan",
+    "latitude": 25.2138,
+    "longitude": 75.8648
+  },
+  {
+    "name": "Lucknow",
+    "district": "Lucknow",
+    "state": "Uttar Pradesh",
+    "latitude": 26.8467,
+    "longitude": 80.9462
+  },
+  {
+    "name": "Kanpur",
+    "district": "Kanpur Nagar",
+    "state": "Uttar Pradesh",
+    "latitude": 26.4499,
+    "longitude": 80.3319
+  },
+  {
+    "name": "Agra",
+    "district": "Agra",
+    "state": "Uttar Pradesh",
+    "latitude": 27.1767,
+    "longitude": 78.0081
+  },
+  {
+    "name": "Varanasi",
+    "district": "Varanasi",
+    "state": "Uttar Pradesh",
+    "latitude": 25.3176,
+    "longitude": 82.9739
+  },
+  {
+    "name": "Prayagraj",
+    "district": "Prayagraj",
+    "state": "Uttar Pradesh",
+    "latitude": 25.4358,
+    "longitude": 81.8463
+  },
+  {
+    "name": "Muzaffarpur",
+    "district": "Muzaffarpur",
+    "state": "Bihar",
+    "latitude": 26.1209,
+    "longitude": 85.3647
+  },
+  {
+    "name": "Patna",
+    "district": "Patna",
+    "state": "Bihar",
+    "latitude": 25.5941,
+    "longitude": 85.1376
+  },
+  {
+    "name": "Gaya",
+    "district": "Gaya",
+    "state": "Bihar",
+    "latitude": 24.7914,
+    "longitude": 85.0002
+  },
+  {
+    "name": "Kolkata",
+    "district": "Kolkata",
+    "state": "West Bengal",
+    "latitude": 22.5726,
+    "longitude": 88.3639
+  },
+  {
+    "name": "Siliguri",
+    "district": "Darjeeling",
+    "state": "West Bengal",
+    "latitude": 26.7271,
+    "longitude": 88.3953
+  },
+  {
+    "name": "Bhopal",
+    "district": "Bhopal",
+    "state": "Madhya Pradesh",
+    "latitude": 23.2599,
+    "longitude": 77.4126
+  },
+  {
+    "name": "Indore",
+    "district": "Indore",
+    "state": "Madhya Pradesh",
+    "latitude": 22.7196,
+    "longitude": 75.8577
+  },
+  {
+    "name": "Gwalior",
+    "district": "Gwalior",
+    "state": "Madhya Pradesh",
+    "latitude": 26.2183,
+    "longitude": 78.1828
+  },
+  {
+    "name": "Jabalpur",
+    "district": "Jabalpur",
+    "state": "Madhya Pradesh",
+    "latitude": 23.1815,
+    "longitude": 79.9864
+  },
+  {
+    "name": "Bhubaneswar",
+    "district": "Khordha",
+    "state": "Odisha",
+    "latitude": 20.2961,
+    "longitude": 85.8245
+  },
+  {
+    "name": "Cuttack",
+    "district": "Cuttack",
+    "state": "Odisha",
+    "latitude": 20.4625,
+    "longitude": 85.8828
+  },
+  {
+    "name": "Ranchi",
+    "district": "Ranchi",
+    "state": "Jharkhand",
+    "latitude": 23.3441,
+    "longitude": 85.3096
+  },
+  {
+    "name": "Dehradun",
+    "district": "Dehradun",
+    "state": "Uttarakhand",
+    "latitude": 30.3165,
+    "longitude": 78.0322
+  },
+  {
+    "name": "Chandigarh",
+    "district": "Chandigarh",
+    "state": "Chandigarh",
+    "latitude": 30.7333,
+    "longitude": 76.7794
+  },
+  {
+    "name": "Amritsar",
+    "district": "Amritsar",
+    "state": "Punjab",
+    "latitude": 31.634,
+    "longitude": 74.8723
+  },
+  {
+    "name": "Ludhiana",
+    "district": "Ludhiana",
+    "state": "Punjab",
+    "latitude": 30.901,
+    "longitude": 75.8573
+  },
+  {
+    "name": "Jammu",
+    "district": "Jammu",
+    "state": "Jammu and Kashmir",
+    "latitude": 32.7266,
+    "longitude": 74.857
+  },
+  {
+    "name": "Srinagar",
+    "district": "Srinagar",
+    "state": "Jammu and Kashmir",
+    "latitude": 34.0837,
+    "longitude": 74.7973
+  },
+  {
+    "name": "Panaji",
+    "district": "North Goa",
+    "state": "Goa",
+    "latitude": 15.4909,
+    "longitude": 73.8278
+  }
+]

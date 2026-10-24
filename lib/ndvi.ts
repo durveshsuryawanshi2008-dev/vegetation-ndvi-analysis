@@ -1,5 +1,6 @@
 import { ee, initializeEarthEngine, evaluateEE } from './earthengine';
 import { saveAnalysisToDatabase, getCachedAnalysis } from './database';
+import indianCities from './data/indian-cities.json';
 import {
   NdviAnalysisResponse,
   YearlyNdviResult,
@@ -29,31 +30,26 @@ export function determineVegetationStatus(ndvi: number | null): VegetationStatus
 }
 
 /**
- * Cloud and cirrus masking for Sentinel-2 Surface Reflectance (Harmonized)
- * Utilizes SCL (Scene Classification Layer) and QA60 bitmask.
+ * Cloud, shadow, and invalid pixel masking for Sentinel-2 Surface Reflectance (Harmonized).
+ * Applied per-image on selected bands to minimize memory footprint.
  */
-function applyCloudAndShadowMask(image: any) {
+function maskAndComputeNdvi(image: any) {
   // SCL Band classes to exclude:
   // 3 = Cloud shadows, 8 = Cloud medium probability, 9 = Cloud high probability, 10 = Thin cirrus, 11 = Snow
   const scl = image.select('SCL');
-  const sclMask = scl.neq(3)
+  const mask = scl
+    .neq(3)
     .and(scl.neq(8))
     .and(scl.neq(9))
     .and(scl.neq(10))
     .and(scl.neq(11));
 
-  // QA60 bitmask backup
-  const qa = image.select('QA60');
-  const cloudBitMask = 1 << 10;
-  const cirrusBitMask = 1 << 11;
-  const qaMask = qa.bitwiseAnd(cloudBitMask).eq(0).and(qa.bitwiseAnd(cirrusBitMask).eq(0));
-
-  const totalMask = sclMask.and(qaMask);
-  return image.updateMask(totalMask);
+  const ndvi = image.normalizedDifference(['B8', 'B4']).rename('ndvi');
+  return ndvi.updateMask(mask);
 }
 
-interface BoundaryResult {
-  feature: any;
+export interface BoundaryResult {
+  feature?: any;
   geometry: any;
   areaName: string;
   state: string;
@@ -62,36 +58,158 @@ interface BoundaryResult {
   datasetUsed: string;
 }
 
-/**
- * Finds the administrative boundary from FAO GAUL datasets.
- * Prioritizes FAO/GAUL/2025/level2 with GAUL2_NAME as requested,
- * with resilient fallbacks to ADM2_NAME and FAO/GAUL/2015/level2.
- */
-async function resolveAdministrativeBoundary(targetArea: string): Promise<BoundaryResult | null> {
-  const trimmed = targetArea.trim();
-  const titleCase = trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+export interface AreaAnalysisOptions {
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
+  district?: string;
+  state?: string;
+  country?: string;
+}
 
-  // Primary dataset requested: FAO/GAUL/2025/level2
-  // Secondary standard fallback: FAO/GAUL/2015/level2
+/**
+ * Resolves administrative boundary or geometry for any city or district in India and worldwide.
+ * Supports:
+ * 1. Geographic point intersection (filterBounds) across FAO GAUL datasets.
+ * 2. Mapped Indian city dictionary lookup.
+ * 3. Exact and prefix text matching on FAO GAUL Level 2 and Level 1.
+ * 4. Nominatim server-side geocoding fallback for unlisted global cities.
+ * 5. Radial buffer geometry fallback for coastal or unlisted geographic points.
+ */
+export async function resolveAdministrativeBoundary(
+  targetArea: string,
+  options?: AreaAnalysisOptions
+): Promise<BoundaryResult | null> {
+  const trimmed = targetArea.trim();
+  const titleCase =
+    trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+
+  // 1. PATH A: Coordinates provided via autocomplete or client request
+  if (
+    options?.coordinates &&
+    typeof options.coordinates.latitude === 'number' &&
+    typeof options.coordinates.longitude === 'number' &&
+    !Number.isNaN(options.coordinates.latitude) &&
+    !Number.isNaN(options.coordinates.longitude)
+  ) {
+    const lat = options.coordinates.latitude;
+    const lon = options.coordinates.longitude;
+    const point = ee.Geometry.Point([lon, lat]);
+
+    // Check FAO/GAUL/2015/level2 first, then level1
+    const candidateDatasets = [
+      { id: 'FAO/GAUL/2015/level2', nameField: 'ADM2_NAME' },
+      { id: 'FAO/GAUL/2015/level1', nameField: 'ADM1_NAME' },
+    ];
+
+    for (const ds of candidateDatasets) {
+      try {
+        const matches = ee.FeatureCollection(ds.id).filterBounds(point);
+        const count = await evaluateEE<number>(matches.size());
+
+        if (count > 0) {
+          const feature = matches.first();
+          const geometry = feature.geometry();
+
+          const [props, calculatedKm2] = await Promise.all([
+            evaluateEE<Record<string, any>>(feature.toDictionary()),
+            evaluateEE<number>(geometry.area().divide(1e6)),
+          ]);
+
+          const officialName = props[ds.nameField] || trimmed;
+          const state =
+            props.ADM1_NAME ||
+            props.GAUL1_NAME ||
+            options.state ||
+            'Administrative Region';
+          const country =
+            props.ADM0_NAME ||
+            props.GAUL0_NAME ||
+            options.country ||
+            'Global';
+          const areaKm2 =
+            Math.round(
+              (calculatedKm2 || props.Shape_Area || 100) * 100
+            ) / 100;
+
+          return {
+            feature,
+            geometry,
+            areaName: trimmed || officialName,
+            state,
+            country,
+            areaKm2,
+            datasetUsed: ds.id,
+          };
+        }
+      } catch (err) {
+        console.warn(`Error resolving boundary by point for ${ds.id}:`, err);
+      }
+    }
+
+    // Circular buffer fallback (10km radius ~314 km²) around city coordinates
+    try {
+      const bufferGeom = point.buffer(10000);
+      return {
+        geometry: bufferGeom,
+        areaName: trimmed,
+        state: options.state || 'Local Area',
+        country: options.country || 'Global',
+        areaKm2: 314.16,
+        datasetUsed: 'Point Buffer (10km Radius)',
+      };
+    } catch {
+      // Continue to text search if buffer fails
+    }
+  }
+
+  // 2. PATH B: Local Indian Cities dictionary mapping
+  const localMatch = (indianCities as any[]).find(
+    (c) =>
+      c.name.toLowerCase() === trimmed.toLowerCase() ||
+      c.district.toLowerCase() === trimmed.toLowerCase()
+  );
+
+  if (localMatch && localMatch.latitude && localMatch.longitude) {
+    // Recursively resolve using exact coordinates
+    return resolveAdministrativeBoundary(trimmed, {
+      ...options,
+      coordinates: {
+        latitude: localMatch.latitude,
+        longitude: localMatch.longitude,
+      },
+      district: localMatch.district,
+      state: localMatch.state,
+      country: 'India',
+    });
+  }
+
+  // 3. PATH C: Direct text search in FAO GAUL datasets
   const candidateDatasets = [
-    { id: 'FAO/GAUL/2025/level2', primaryField: 'GAUL2_NAME', altField: 'ADM2_NAME' },
-    { id: 'FAO/GAUL/2015/level2', primaryField: 'ADM2_NAME', altField: 'GAUL2_NAME' },
-    { id: 'FAO/GAUL/2015/level1', primaryField: 'ADM1_NAME', altField: 'GAUL1_NAME' },
+    { id: 'FAO/GAUL/2015/level2', primaryField: 'ADM2_NAME' },
+    { id: 'FAO/GAUL/2015/level1', primaryField: 'ADM1_NAME' },
+    { id: 'FAO/GAUL/2025/level2', primaryField: 'GAUL2_NAME' },
   ];
+
+  const searchNames = [trimmed, titleCase];
+  if (localMatch && localMatch.district && !searchNames.includes(localMatch.district)) {
+    searchNames.push(localMatch.district);
+  }
+  if (options?.district && !searchNames.includes(options.district)) {
+    searchNames.push(options.district);
+  }
 
   for (const ds of candidateDatasets) {
     try {
       const collection = ee.FeatureCollection(ds.id);
 
-      // Search using exact match, title case, or case-insensitive startsWith
-      const filter = ee.Filter.or(
-        ee.Filter.eq(ds.primaryField, trimmed),
-        ee.Filter.eq(ds.primaryField, titleCase),
-        ee.Filter.eq(ds.altField, trimmed),
-        ee.Filter.eq(ds.altField, titleCase),
-        ee.Filter.stringStartsWith(ds.primaryField, titleCase)
-      );
+      const filterConditions = searchNames.flatMap((name) => [
+        ee.Filter.eq(ds.primaryField, name),
+        ee.Filter.stringStartsWith(ds.primaryField, name),
+      ]);
 
+      const filter = ee.Filter.or(...filterConditions);
       const matches = collection.filter(filter);
       const count = await evaluateEE<number>(matches.size());
 
@@ -99,16 +217,24 @@ async function resolveAdministrativeBoundary(targetArea: string): Promise<Bounda
         const feature = matches.first();
         const geometry = feature.geometry();
 
-        // Extract metadata & area
         const [props, calculatedKm2] = await Promise.all([
           evaluateEE<Record<string, any>>(feature.toDictionary()),
           evaluateEE<number>(geometry.area().divide(1e6)),
         ]);
 
-        const areaName = props[ds.primaryField] || props[ds.altField] || trimmed;
-        const state = props.ADM1_NAME || props.GAUL1_NAME || props.ADM1_CODE || 'District Level';
-        const country = props.ADM0_NAME || props.GAUL0_NAME || 'Unknown Country';
-        const areaKm2 = Math.round((calculatedKm2 || props.Shape_Area || 0) * 100) / 100;
+        const areaName = trimmed || props[ds.primaryField] || titleCase;
+        const state =
+          props.ADM1_NAME ||
+          props.GAUL1_NAME ||
+          options?.state ||
+          'Administrative Level';
+        const country =
+          props.ADM0_NAME ||
+          props.GAUL0_NAME ||
+          options?.country ||
+          'Unknown Country';
+        const areaKm2 =
+          Math.round((calculatedKm2 || props.Shape_Area || 0) * 100) / 100;
 
         return {
           feature,
@@ -121,142 +247,216 @@ async function resolveAdministrativeBoundary(targetArea: string): Promise<Bounda
         };
       }
     } catch {
-      // If dataset asset doesn't exist on GEE, continue to next candidate
       continue;
     }
+  }
+
+  // 4. PATH D: Server-side Geocoding fallback via Nominatim
+  try {
+    const geoUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
+      trimmed
+    )}&format=jsonv2&limit=1`;
+
+    const geoRes = await fetch(geoUrl, {
+      headers: {
+        'User-Agent': 'VegetationNDVIAnalyzer/2.0 (student capstone project)',
+        Accept: 'application/json',
+      },
+      signal: AbortSignal.timeout(3500),
+    });
+
+    if (geoRes.ok) {
+      const geoData = await geoRes.json();
+      if (geoData && geoData.length > 0 && geoData[0].lat && geoData[0].lon) {
+        const lat = Number(geoData[0].lat);
+        const lon = Number(geoData[0].lon);
+
+        return resolveAdministrativeBoundary(trimmed, {
+          ...options,
+          coordinates: { latitude: lat, longitude: lon },
+          state: geoData[0].address?.state || options?.state,
+          country: geoData[0].address?.country || options?.country,
+        });
+      }
+    }
+  } catch (geoErr) {
+    console.warn('Geocoding fallback warning:', geoErr);
   }
 
   return null;
 }
 
 /**
- * Calculates Sentinel-2 NDVI metrics for a specific year and area geometry.
- * Returns null if no satellite images are available or if cloud-free coverage is insufficient.
+ * Builds Earth Engine computation graph for a specific year's NDVI statistics.
+ * Uses optimized band pre-selection and per-image masking to prevent memory limits.
  */
-async function computeYearlyNdvi(
+function buildYearComputation(
   geometry: any,
   year: number,
-  cloudThreshold = 30
-): Promise<YearlyNdviResult> {
+  scale: number,
+  cloudThreshold = 50
+) {
   const startDate = `${year}-01-01`;
   const endDate = `${year}-12-31`;
 
-  try {
-    // 5. Load COPERNICUS/S2_SR_HARMONIZED
-    // 6. Filter by area geometry, year, cloud percentage
-    const s2Collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
-      .filterBounds(geometry)
-      .filterDate(startDate, endDate)
-      .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', cloudThreshold));
+  // Select only B8 (NIR), B4 (Red), and SCL (Scene Classification) to drastically reduce memory usage
+  const s2Collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+    .filterBounds(geometry)
+    .filterDate(startDate, endDate)
+    .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', cloudThreshold))
+    .select(['B8', 'B4', 'SCL'])
+    .map(maskAndComputeNdvi);
 
-    const imageCount = await evaluateEE<number>(s2Collection.size());
+  const medianComposite = s2Collection.median();
 
-    // If no satellite images available for the year, return null instead of crashing
-    if (imageCount === 0) {
-      return {
-        year,
-        avgNdvi: null,
-        minNdvi: null,
-        maxNdvi: null,
-        vegetationStatus: 'Unknown',
-        imageCount: 0,
-      };
-    }
-
-    // 7. Apply cloud masking
-    const maskedCollection = s2Collection.map(applyCloudAndShadowMask);
-
-    // 8. Calculate NDVI: normalizedDifference(['B8','B4'])
-    // We compute the median composite over the year for cloud-free stability
-    const medianComposite = maskedCollection.median();
-    const ndviImage = medianComposite.normalizedDifference(['B8', 'B4']).rename('ndvi');
-
-    // 9. Calculate: average NDVI, minimum NDVI, maximum NDVI
-    const combinedReducer = ee.Reducer.mean()
-      .combine({
-        reducer2: ee.Reducer.min(),
-        sharedInputs: true,
-      })
-      .combine({
-        reducer2: ee.Reducer.max(),
-        sharedInputs: true,
-      });
-
-    // Reduce over boundary geometry
-    // Scale 150m-200m ensures fast server-side aggregation for districts while preserving Sentinel-2 accuracy
-    const statsDict = ndviImage.reduceRegion({
-      reducer: combinedReducer,
-      geometry: geometry,
-      scale: 150,
-      maxPixels: 1e9,
-      bestEffort: true,
+  const combinedReducer = ee.Reducer.mean()
+    .combine({
+      reducer2: ee.Reducer.min(),
+      sharedInputs: true,
+    })
+    .combine({
+      reducer2: ee.Reducer.max(),
+      sharedInputs: true,
     });
 
-    const stats = await evaluateEE<Record<string, number | null>>(statsDict);
+  return medianComposite.reduceRegion({
+    reducer: combinedReducer,
+    geometry: geometry,
+    scale: scale,
+    maxPixels: 1e9,
+    bestEffort: true,
+  });
+}
 
-    const rawAvg = stats?.ndvi_mean ?? stats?.ndvi ?? null;
-    const rawMin = stats?.ndvi_min ?? null;
-    const rawMax = stats?.ndvi_max ?? null;
+/**
+ * Computes 5 complete calendar years (2021-2025) of Sentinel-2 NDVI.
+ * Evaluates all years in a unified Earth Engine dictionary request to eliminate latency and avoid memory limits.
+ */
+async function compute5YearNdvi(
+  geometry: any,
+  areaKm2: number
+): Promise<YearlyNdviResult[]> {
+  const calendarYears = [2021, 2022, 2023, 2024, 2025];
 
-    // Validate and round values
-    const avgNdvi = typeof rawAvg === 'number' && !Number.isNaN(rawAvg) 
-      ? Math.max(-1, Math.min(1, Math.round(rawAvg * 10000) / 10000))
-      : null;
+  // Adaptive scale ensures rapid server-side processing while preserving multispectral accuracy:
+  // Large districts (> 6000 km²): 500m scale (~30k-60k sample pixels)
+  // Medium districts (2000 - 6000 km²): 300m scale (~20k-40k sample pixels)
+  // Cities & towns (< 2000 km²): 150m scale (~10k-30k sample pixels)
+  const scale = areaKm2 > 6000 ? 500 : areaKm2 > 2000 ? 300 : 150;
 
-    const minNdvi = typeof rawMin === 'number' && !Number.isNaN(rawMin)
-      ? Math.max(-1, Math.min(1, Math.round(rawMin * 10000) / 10000))
-      : null;
+  try {
+    // Construct unified dictionary so Earth Engine computes all 5 years in a single distributed graph
+    const dictionaryEntries: Record<string, any> = {};
+    for (const year of calendarYears) {
+      dictionaryEntries[year.toString()] = buildYearComputation(geometry, year, scale);
+    }
 
-    const maxNdvi = typeof rawMax === 'number' && !Number.isNaN(rawMax)
-      ? Math.max(-1, Math.min(1, Math.round(rawMax * 10000) / 10000))
-      : null;
+    const combinedDict = ee.Dictionary(dictionaryEntries);
+    const results = await evaluateEE<Record<string, Record<string, number | null>>>(combinedDict);
 
-    // 10. Determine vegetation status
-    const vegetationStatus = determineVegetationStatus(avgNdvi);
+    return calendarYears.map((year) => {
+      const stats = results?.[year.toString()] || {};
+      const rawAvg = stats?.ndvi_mean ?? stats?.ndvi ?? null;
+      const rawMin = stats?.ndvi_min ?? null;
+      const rawMax = stats?.ndvi_max ?? null;
 
-    return {
-      year,
-      avgNdvi,
-      minNdvi,
-      maxNdvi,
-      vegetationStatus,
-      imageCount,
-    };
-  } catch (error) {
-    console.warn(`Error computing NDVI for year ${year}:`, error);
-    return {
-      year,
-      avgNdvi: null,
-      minNdvi: null,
-      maxNdvi: null,
-      vegetationStatus: 'Unknown',
-      imageCount: 0,
-    };
+      const avgNdvi =
+        typeof rawAvg === 'number' && !Number.isNaN(rawAvg)
+          ? Math.max(-1, Math.min(1, Math.round(rawAvg * 10000) / 10000))
+          : null;
+
+      const minNdvi =
+        typeof rawMin === 'number' && !Number.isNaN(rawMin)
+          ? Math.max(-1, Math.min(1, Math.round(rawMin * 10000) / 10000))
+          : null;
+
+      const maxNdvi =
+        typeof rawMax === 'number' && !Number.isNaN(rawMax)
+          ? Math.max(-1, Math.min(1, Math.round(rawMax * 10000) / 10000))
+          : null;
+
+      return {
+        year,
+        avgNdvi,
+        minNdvi,
+        maxNdvi,
+        vegetationStatus: determineVegetationStatus(avgNdvi),
+      };
+    });
+  } catch (batchError) {
+    console.warn('Batch 5-year evaluation warning, attempting resilient sequential evaluation:', batchError);
+
+    // Fallback: evaluate year by year if batch encounters any edge-case issue
+    const yearlyResults: YearlyNdviResult[] = [];
+    for (const year of calendarYears) {
+      try {
+        const computation = buildYearComputation(geometry, year, scale);
+        const stats = await evaluateEE<Record<string, number | null>>(computation);
+
+        const rawAvg = stats?.ndvi_mean ?? stats?.ndvi ?? null;
+        const rawMin = stats?.ndvi_min ?? null;
+        const rawMax = stats?.ndvi_max ?? null;
+
+        const avgNdvi =
+          typeof rawAvg === 'number' && !Number.isNaN(rawAvg)
+            ? Math.max(-1, Math.min(1, Math.round(rawAvg * 10000) / 10000))
+            : null;
+
+        const minNdvi =
+          typeof rawMin === 'number' && !Number.isNaN(rawMin)
+            ? Math.max(-1, Math.min(1, Math.round(rawMin * 10000) / 10000))
+            : null;
+
+        const maxNdvi =
+          typeof rawMax === 'number' && !Number.isNaN(rawMax)
+            ? Math.max(-1, Math.min(1, Math.round(rawMax * 10000) / 10000))
+            : null;
+
+        yearlyResults.push({
+          year,
+          avgNdvi,
+          minNdvi,
+          maxNdvi,
+          vegetationStatus: determineVegetationStatus(avgNdvi),
+        });
+      } catch (singleErr) {
+        console.warn(`Year ${year} evaluation error:`, singleErr);
+        yearlyResults.push({
+          year,
+          avgNdvi: null,
+          minNdvi: null,
+          maxNdvi: null,
+          vegetationStatus: 'Unknown',
+        });
+      }
+    }
+
+    return yearlyResults;
   }
 }
 
 /**
  * Main analysis pipeline for requested area.
  * Executes:
- * 1. Secure Earth Engine authentication
- * 2. Administrative boundary lookup in FAO/GAUL/2025/level2
- * 3. Geometry extraction
- * 4. 5-year NDVI evaluation (2021-2025)
- * 5. SQL database persistence into users, areas, analysis_requests, ndvi_results, reports
+ * 1. Checks relational SQL cache (TiDB / MySQL) for instant return
+ * 2. Authenticates with Google Earth Engine
+ * 3. Resolves vector boundary geometry (FAO GAUL Level 2 / Level 1 / Point buffer)
+ * 4. Computes 5-year multi-temporal Sentinel-2 NDVI trajectory (2021-2025)
+ * 5. Persists result into database tables: areas, analysis_requests, ndvi_results, reports
  */
-export async function analyzeAreaNdvi(targetArea: string): Promise<NdviAnalysisResponse> {
+export async function analyzeAreaNdvi(
+  targetArea: string,
+  options?: AreaAnalysisOptions
+): Promise<NdviAnalysisResponse> {
   if (!targetArea || typeof targetArea !== 'string' || targetArea.trim().length === 0) {
-    throw new Error('Please enter a valid district or area name.');
+    throw new Error('Please enter a valid district or city name.');
   }
 
   const requestedArea = targetArea.trim();
-
   const satelliteSource = 'COPERNICUS/S2_SR_HARMONIZED';
   const boundarySource = 'FAO/GAUL/2025/level2';
-  const calendarYears = [2021, 2022, 2023, 2024, 2025];
 
-  // 1. Check TiDB cache BEFORE starting Google Earth Engine.
-  // Repeated requests for the same district can therefore return immediately.
+  // 1. Check TiDB cache BEFORE calling Google Earth Engine.
   try {
     const cached = await getCachedAnalysis(
       requestedArea,
@@ -268,9 +468,9 @@ export async function analyzeAreaNdvi(targetArea: string): Promise<NdviAnalysisR
       console.log(`[NDVI] Cache hit for "${requestedArea}"`);
 
       return {
-        area: cached.request.area_name,
-        country: cached.request.country,
-        state: cached.request.state,
+        area: cached.request.area_name || requestedArea,
+        country: cached.request.country || options?.country || 'India',
+        state: cached.request.state || options?.state || '',
         areaKm2: Number(cached.request.area_km2) || 0,
         years: cached.years,
         metadata: {
@@ -288,30 +488,30 @@ export async function analyzeAreaNdvi(targetArea: string): Promise<NdviAnalysisR
 
     console.log(`[NDVI] Cache miss for "${requestedArea}"`);
   } catch (cacheError) {
-    // Cache failure must never prevent a real Earth Engine analysis.
-    console.warn('[NDVI] Cache lookup failed; continuing with Earth Engine:', cacheError);
+    console.warn('[NDVI] Cache lookup warning; continuing with Earth Engine:', cacheError);
   }
 
-  // 2. Authenticate with Google Earth Engine only when cache misses.
+  // 2. Authenticate with Google Earth Engine
   await initializeEarthEngine();
 
-  // 3. Find matching administrative boundary and geometry.
-  const boundary = await resolveAdministrativeBoundary(requestedArea);
+  // 3. Find matching administrative boundary and geometry
+  const boundary = await resolveAdministrativeBoundary(requestedArea, options);
 
   if (!boundary) {
     throw new Error('Area not found. Try a district name such as Pune.');
   }
 
-  // 4. Calculate all five complete calendar years concurrently.
-  const yearlyResults = await Promise.all(
-    calendarYears.map((year) => computeYearlyNdvi(boundary.geometry, year))
+  // 4. Calculate all 5 complete calendar years using optimized unified evaluation
+  const yearlyResults = await compute5YearNdvi(
+    boundary.geometry,
+    boundary.areaKm2
   );
 
-  // 5. Build response.
+  // 5. Build response object
   const responseData: NdviAnalysisResponse = {
-    area: boundary.areaName,
-    country: boundary.country,
-    state: boundary.state,
+    area: boundary.areaName || requestedArea,
+    country: boundary.country || options?.country || 'India',
+    state: boundary.state || options?.state || '',
     areaKm2: boundary.areaKm2,
     years: yearlyResults,
     metadata: {
@@ -321,12 +521,12 @@ export async function analyzeAreaNdvi(targetArea: string): Promise<NdviAnalysisR
     },
   };
 
-  // 6. Save the newly calculated result to TiDB.
+  // 6. Save newly calculated result to TiDB
   try {
     const dbResult = await saveAnalysisToDatabase({
-      areaName: boundary.areaName,
-      state: boundary.state,
-      country: boundary.country,
+      areaName: boundary.areaName || requestedArea,
+      state: boundary.state || options?.state || '',
+      country: boundary.country || options?.country || 'India',
       areaKm2: boundary.areaKm2,
       years: yearlyResults,
       boundarySource: boundary.datasetUsed,
@@ -342,11 +542,7 @@ export async function analyzeAreaNdvi(targetArea: string): Promise<NdviAnalysisR
       }
     }
   } catch (dbErr) {
-    console.warn(
-      'Database save warning (analysis still returned to user):',
-      dbErr
-    );
-
+    console.warn('Database save warning (analysis still returned to user):', dbErr);
     if (responseData.metadata) {
       responseData.metadata.persistedToDb = false;
       responseData.metadata.dbMessage = (dbErr as Error).message;

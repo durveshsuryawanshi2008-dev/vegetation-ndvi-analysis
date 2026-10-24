@@ -31,6 +31,13 @@ export interface NdviAnalysisResponse {
 
 export interface NdviApiRequest {
   area: string;
+  district?: string;
+  state?: string;
+  country?: string;
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
   years?: number[];
   cloudThreshold?: number;
 }
