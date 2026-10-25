@@ -24,12 +24,20 @@ export function AnalysisDashboard({ data, onRefresh, isRefreshing }: AnalysisDas
       {/* Dashboard Header Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-panel rounded-2xl p-6 border-eco-neon/20">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-mono uppercase px-2.5 py-0.5 rounded-full bg-eco-900 border border-eco-neon/40 text-eco-neon">
               Analysis Results
             </span>
-            <span className="text-xs text-zinc-400 font-mono">
-              FAO Boundary: {data.metadata?.boundarySource || 'FAO/GAUL/2025/level2'}
+            <span
+              className={`text-xs font-mono px-2.5 py-0.5 rounded-full border ${
+                data.metadata?.analysisScope === 'CITY_BUFFER_10KM'
+                  ? 'bg-cyan-950/60 border-cyan-500/40 text-cyan-300'
+                  : 'bg-white/[0.04] border-white/10 text-zinc-400'
+              }`}
+            >
+              {data.metadata?.analysisScope === 'CITY_BUFFER_10KM'
+                ? 'Radial Buffer Fallback (10 km)'
+                : 'Authoritative Administrative Boundary'}
             </span>
           </div>
 
@@ -41,7 +49,8 @@ export function AnalysisDashboard({ data, onRefresh, isRefreshing }: AnalysisDas
           </h2>
 
           <p className="text-xs text-zinc-400 font-mono">
-            Analyzed using Copernicus Sentinel-2 Level-2A surface reflectance composites across 5 complete calendar years
+            {data.metadata?.scopeDescription ||
+              `Analyzed across ${data.areaKm2.toLocaleString()} km² using Sentinel-2 L2A surface reflectance composites (2021–2025)`}
           </p>
         </div>
 

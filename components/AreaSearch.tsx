@@ -1,32 +1,33 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-
 import {
   Search,
   Loader2,
   Sparkles,
   MapPin,
   Satellite,
+  Users,
+  Globe2,
 } from 'lucide-react';
-
-interface LocationSuggestion {
-  name: string;
-  district: string;
-  state: string;
-  country: string;
-  displayName: string;
-  latitude?: number;
-  longitude?: number;
-  osmType?: string;
-  osmId?: number | null;
-}
+import { LocationSuggestion } from '@/lib/types';
 
 interface AreaSearchProps {
   onSearch: (location: LocationSuggestion) => void;
   isLoading: boolean;
   initialArea?: string;
   errorMessage?: string | null;
+}
+
+function formatPopulation(pop?: number | null): string | null {
+  if (!pop || pop <= 0) return null;
+  if (pop >= 1_000_000) {
+    return `${(pop / 1_000_000).toFixed(1)}M`;
+  }
+  if (pop >= 1_000) {
+    return `${Math.round(pop / 1_000)}K`;
+  }
+  return pop.toLocaleString();
 }
 
 export function AreaSearch({
@@ -51,7 +52,7 @@ export function AreaSearch({
   useEffect(() => {
     const query = areaInput.trim();
 
-    if (!query) {
+    if (query.length < 2) {
       setSuggestions([]);
       setShowSuggestions(false);
       return;
@@ -69,10 +70,10 @@ export function AreaSearch({
           throw new Error('Location search failed');
         }
 
-        const data = await response.json();
+        const data: LocationSuggestion[] = await response.json();
 
         setSuggestions(data);
-        setShowSuggestions(data.length > 0);
+        setShowSuggestions(true);
       } catch {
         setSuggestions([]);
         setShowSuggestions(false);
@@ -106,26 +107,30 @@ export function AreaSearch({
 
     if (!areaInput.trim()) return;
 
-    /*
-     * If the user selected a city from autocomplete, use the complete
-     * city/district/state object.
-     */
     if (selectedLocation) {
       setShowSuggestions(false);
       onSearch(selectedLocation);
       return;
     }
 
-    /*
-     * If the user manually typed an area, preserve the existing
-     * district-based analysis behaviour.
-     */
+    // If user hit Enter with suggestions open, pick the first one
+    if (suggestions.length > 0) {
+      const top = suggestions[0];
+      setSelectedLocation(top);
+      setShowSuggestions(false);
+      onSearch(top);
+      return;
+    }
+
     const manualLocation: LocationSuggestion = {
       name: areaInput.trim(),
       district: areaInput.trim(),
       state: '',
       country: '',
+      latitude: 0,
+      longitude: 0,
       displayName: areaInput.trim(),
+      source: 'local',
     };
 
     setShowSuggestions(false);
@@ -134,13 +139,7 @@ export function AreaSearch({
 
   const handleInputChange = (value: string) => {
     setAreaInput(value);
-
-    /*
-     * Once the user edits the input after selecting a suggestion,
-     * the previous selection is no longer considered valid.
-     */
     setSelectedLocation(null);
-    setShowSuggestions(true);
   };
 
   const handleSuggestion = (suggestion: LocationSuggestion) => {
@@ -151,21 +150,28 @@ export function AreaSearch({
   };
 
   const handleQuickSearch = (item: {
+    geonameId?: number;
     name: string;
     district: string;
     state: string;
     country: string;
+    countryCode?: string;
     lat: number;
     lon: number;
+    population?: number;
   }) => {
     const quickLocation: LocationSuggestion = {
+      geonameId: item.geonameId,
       name: item.name,
       district: item.district,
       state: item.state,
       country: item.country,
+      countryCode: item.countryCode,
       latitude: item.lat,
       longitude: item.lon,
+      population: item.population,
       displayName: `${item.name}, ${item.country}`,
+      source: 'geonames',
     };
 
     setAreaInput(item.name);
@@ -175,15 +181,16 @@ export function AreaSearch({
   };
 
   const quickAreas = [
-    { name: 'Pune', district: 'Pune', state: 'Maharashtra', country: 'India', lat: 18.5204, lon: 73.8567 },
-    { name: 'Bengaluru', district: 'Bangalore Urban', state: 'Karnataka', country: 'India', lat: 12.9716, lon: 77.5946 },
-    { name: 'Mumbai', district: 'Mumbai Suburban', state: 'Maharashtra', country: 'India', lat: 19.0760, lon: 72.8777 },
-    { name: 'Delhi', district: 'Delhi', state: 'Delhi', country: 'India', lat: 28.6139, lon: 77.2090 },
-    { name: 'Jaipur', district: 'Jaipur', state: 'Rajasthan', country: 'India', lat: 26.9124, lon: 75.7873 },
-    { name: 'Tokyo', district: 'Tokyo', state: 'Tookyoo', country: 'Japan', lat: 35.6762, lon: 139.6503 },
-    { name: 'London', district: 'Greater London', state: 'England', country: 'United Kingdom', lat: 51.5074, lon: -0.1278 },
-    { name: 'Paris', district: 'Paris', state: 'Ile-de-France', country: 'France', lat: 48.8566, lon: 2.3522 },
-    { name: 'New York', district: 'New York', state: 'New York', country: 'United States', lat: 40.7128, lon: -74.0060 },
+    { geonameId: 1259229, name: 'Pune', district: 'Pune', state: 'Maharashtra', country: 'India', countryCode: 'IN', lat: 18.5204, lon: 73.8567, population: 3124458 },
+    { geonameId: 1277333, name: 'Bengaluru', district: 'Bangalore Urban', state: 'Karnataka', country: 'India', countryCode: 'IN', lat: 12.9716, lon: 77.5946, population: 8495492 },
+    { geonameId: 1275339, name: 'Mumbai', district: 'Mumbai Suburban', state: 'Maharashtra', country: 'India', countryCode: 'IN', lat: 19.0760, lon: 72.8777, population: 12691836 },
+    { geonameId: 1273294, name: 'Delhi', district: 'Delhi', state: 'Delhi', country: 'India', countryCode: 'IN', lat: 28.6139, lon: 77.2090, population: 11007835 },
+    { geonameId: 1269515, name: 'Jaipur', district: 'Jaipur', state: 'Rajasthan', country: 'India', countryCode: 'IN', lat: 26.9124, lon: 75.7873, population: 2711266 },
+    { geonameId: 2643743, name: 'London', district: 'Greater London', state: 'England', country: 'United Kingdom', countryCode: 'GB', lat: 51.5074, lon: -0.1278, population: 8961989 },
+    { geonameId: 2988507, name: 'Paris', district: 'Paris', state: 'Ile-de-France', country: 'France', countryCode: 'FR', lat: 48.8566, lon: 2.3522, population: 2138551 },
+    { geonameId: 1850147, name: 'Tokyo', district: 'Tokyo', state: 'Tookyoo', country: 'Japan', countryCode: 'JP', lat: 35.6762, lon: 139.6503, population: 9733276 },
+    { geonameId: 5128581, name: 'New York', district: 'New York', state: 'New York', country: 'United States', countryCode: 'US', lat: 40.7128, lon: -74.0060, population: 8804190 },
+    { geonameId: 3448439, name: 'São Paulo', district: 'São Paulo', state: 'Sao Paulo', country: 'Brazil', countryCode: 'BR', lat: -23.5475, lon: -46.6361, population: 12400232 },
   ];
 
   return (
@@ -205,7 +212,7 @@ export function AreaSearch({
                 }
               }}
               disabled={isLoading}
-              placeholder="Search any city worldwide..."
+              placeholder="Search 236,000+ cities worldwide (e.g. Pune, London, Paris, Tokyo, São Paulo)..."
               autoComplete="off"
               className="w-full bg-transparent py-3 px-2 text-white placeholder-zinc-500 text-sm sm:text-base focus:outline-none disabled:opacity-50"
             />
@@ -222,9 +229,7 @@ export function AreaSearch({
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin text-black" />
-                  <span className="hidden sm:inline">
-                    Processing GEE...
-                  </span>
+                  <span className="hidden sm:inline">Processing GEE...</span>
                 </>
               ) : (
                 <>
@@ -236,65 +241,89 @@ export function AreaSearch({
           </div>
         </form>
 
-        {showSuggestions && suggestions.length > 0 && (
+        {showSuggestions && (
           <div className="absolute z-50 left-0 right-0 mt-2 overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/95 backdrop-blur-xl shadow-2xl">
-            <div className="px-4 py-2 border-b border-white/5 text-[10px] font-mono text-zinc-500">
-              GLOBAL LOCATIONS
+            <div className="px-4 py-2 border-b border-white/5 text-[10px] font-mono text-zinc-500 flex items-center justify-between">
+              <span>WORLDWIDE CITIES (GEONAMES INDEX)</span>
+              <span>{suggestions.length} MATCHES</span>
             </div>
 
-            {suggestions.map((suggestion, index) => (
-              <button
-                key={`${suggestion.name}-${suggestion.state}-${index}`}
-                type="button"
-                onClick={() => handleSuggestion(suggestion)}
-                className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-eco-neon/10 transition-colors border-b border-white/5 last:border-b-0"
-              >
-                <div className="w-9 h-9 rounded-xl bg-eco-900/50 border border-eco-700/40 flex items-center justify-center shrink-0">
-                  <MapPin className="w-4 h-4 text-eco-neon" />
-                </div>
+            {suggestions.length > 0 ? (
+              suggestions.map((suggestion, index) => {
+                const popFormatted = formatPopulation(suggestion.population);
+                return (
+                  <button
+                    key={`${suggestion.geonameId || suggestion.name}-${suggestion.countryCode || ''}-${index}`}
+                    type="button"
+                    onClick={() => handleSuggestion(suggestion)}
+                    className="w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-eco-neon/10 transition-colors border-b border-white/5 last:border-b-0"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-eco-900/50 border border-eco-700/40 flex items-center justify-center shrink-0">
+                        <MapPin className="w-4 h-4 text-eco-neon" />
+                      </div>
 
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-white truncate">
-                    {suggestion.name}
-                  </p>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-white truncate flex items-center gap-2">
+                          <span>{suggestion.name}</span>
+                          {suggestion.countryCode && (
+                            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-white/[0.06] text-zinc-400">
+                              {suggestion.countryCode}
+                            </span>
+                          )}
+                        </p>
 
-                  <p className="text-xs text-zinc-500 truncate">
-                    {[suggestion.district, suggestion.state, suggestion.country].filter(Boolean).join(', ')}
-                  </p>
-                </div>
-              </button>
-            ))}
+                        <p className="text-xs text-zinc-400 truncate">
+                          {[suggestion.state, suggestion.country]
+                            .filter(Boolean)
+                            .join(', ')}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0 text-right">
+                      {popFormatted && (
+                        <span className="text-[11px] font-mono text-zinc-400 flex items-center gap-1 bg-white/[0.04] px-2 py-1 rounded-lg border border-white/[0.05]">
+                          <Users className="w-3 h-3 text-eco-neon/80" />
+                          {popFormatted}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })
+            ) : !searchingLocations && areaInput.trim().length >= 2 ? (
+              <div className="p-4 text-center text-xs font-mono text-zinc-500">
+                No cities found matching &quot;{areaInput.trim()}&quot;. Check spelling or try a nearby major city.
+              </div>
+            ) : null}
           </div>
         )}
       </div>
 
       {selectedLocation && (
         <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs font-mono">
-          <span className="text-zinc-500">
-            Selected:
-          </span>
-
-          <span className="text-eco-neon font-semibold">
-            {selectedLocation.name}
-          </span>
-
-          <span className="text-zinc-600">
-            →
-          </span>
-
+          <span className="text-zinc-500">Selected:</span>
+          <span className="text-eco-neon font-semibold">{selectedLocation.name}</span>
+          <span className="text-zinc-600">&bull;</span>
           <span className="text-zinc-400">
-            Analysis boundary: {selectedLocation.district}
-            {selectedLocation.state
-              ? `, ${selectedLocation.state}`
-              : ''}
+            {[selectedLocation.state, selectedLocation.country].filter(Boolean).join(', ')}
           </span>
+          {selectedLocation.latitude && selectedLocation.longitude ? (
+            <>
+              <span className="text-zinc-600">&bull;</span>
+              <span className="text-zinc-500">
+                ({selectedLocation.latitude.toFixed(4)}°, {selectedLocation.longitude.toFixed(4)}°)
+              </span>
+            </>
+          ) : null}
         </div>
       )}
 
       <div className="flex flex-wrap items-center justify-center gap-2 pt-1 text-xs">
         <span className="text-zinc-500 font-mono text-[11px] flex items-center gap-1">
           <Sparkles className="w-3 h-3 text-eco-neon" />
-          QUICK SEARCH:
+          POPULAR CITIES:
         </span>
 
         {quickAreas.map((item) => (
@@ -310,16 +339,20 @@ export function AreaSearch({
         ))}
       </div>
 
+      <div className="text-center pt-0.5">
+        <span className="text-[10px] font-mono text-zinc-600 flex items-center justify-center gap-1">
+          <Globe2 className="w-3 h-3" />
+          Populated places index powered by GeoNames.org (Creative Commons Attribution 4.0)
+        </span>
+      </div>
+
       {errorMessage && (
         <div className="rounded-xl border border-rose-500/40 bg-rose-950/20 p-4 text-rose-300 text-sm flex items-start gap-3 backdrop-blur-md">
           <div className="w-2 h-2 rounded-full bg-rose-400 mt-1.5 shrink-0" />
-
           <div className="space-y-1">
             <p className="font-medium">{errorMessage}</p>
-
             <p className="text-xs text-rose-400/80 font-mono">
-              Search results use global location search. Analysis depends on
-              finding a matching administrative boundary.
+              The analysis boundary or satellite data could not be retrieved. Please verify the city or try a nearby region.
             </p>
           </div>
         </div>

@@ -6,7 +6,7 @@ import { AreaSearch } from '@/components/AreaSearch';
 import { AnalysisDashboard } from '@/components/AnalysisDashboard';
 import { LoadingSkeleton } from '@/components/LoadingSkeleton';
 import { ConfigAlert } from '@/components/ConfigAlert';
-import { NdviAnalysisResponse } from '@/lib/types';
+import { NdviAnalysisResponse, LocationSuggestion } from '@/lib/types';
 
 import {
   Satellite,
@@ -15,26 +15,19 @@ import {
   Layers,
 } from 'lucide-react';
 
-interface SelectedLocation {
-  name: string;
-  district: string;
-  state: string;
-  country: string;
-  displayName: string;
-  latitude?: number;
-  longitude?: number;
-}
-
 export default function HomePage() {
   const [activeLocation, setActiveLocation] =
-    useState<SelectedLocation>({
+    useState<LocationSuggestion>({
+      geonameId: 1259229,
       name: 'Pune',
       district: 'Pune',
       state: 'Maharashtra',
       country: 'India',
+      countryCode: 'IN',
       displayName: 'Pune, Maharashtra, India',
       latitude: 18.5204,
       longitude: 73.8567,
+      source: 'geonames',
     });
 
   const [analysisData, setAnalysisData] =
@@ -56,7 +49,7 @@ export default function HomePage() {
       .catch(() => {});
   }, []);
 
-  const runAnalysis = async (location: SelectedLocation) => {
+  const runAnalysis = async (location: LocationSuggestion) => {
     setIsLoading(true);
     setErrorMessage(null);
     setActiveLocation(location);
@@ -68,10 +61,12 @@ export default function HomePage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          area: location.name || location.district,
+          area: location.name,
+          geonameId: location.geonameId,
           district: location.district,
           state: location.state,
           country: location.country,
+          countryCode: location.countryCode,
           coordinates:
             typeof location.latitude === 'number' &&
             typeof location.longitude === 'number'

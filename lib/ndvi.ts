@@ -1,5 +1,6 @@
 import { ee, initializeEarthEngine, evaluateEE } from './earthengine';
-import { saveAnalysisToDatabase, getCachedAnalysis } from './database';
+import { saveAnalysisToDatabase, getCachedAnalysis, getDbPool } from './database';
+import { normalizeSearchText, getCountryName } from './countries';
 import indianCities from './data/indian-cities.json';
 import {
   NdviAnalysisResponse,
@@ -31,7 +32,7 @@ export function determineVegetationStatus(ndvi: number | null): VegetationStatus
 
 /**
  * Cloud, shadow, and invalid pixel masking for Sentinel-2 Surface Reflectance (Harmonized).
- * Applied per-image on selected bands to minimize memory footprint.
+ * Applied per-image on selected bands (B8, B4, SCL) to minimize memory footprint.
  */
 function maskAndComputeNdvi(image: any) {
   // SCL Band classes to exclude:
@@ -48,17 +49,23 @@ function maskAndComputeNdvi(image: any) {
   return ndvi.updateMask(mask);
 }
 
+export type AnalysisScopeType = 'ADMINISTRATIVE_DISTRICT' | 'CITY_BUFFER_10KM' | 'CUSTOM';
+
 export interface BoundaryResult {
   feature?: any;
   geometry: any;
   areaName: string;
   state: string;
   country: string;
+  countryCode?: string;
   areaKm2: number;
   datasetUsed: string;
+  analysisScope: AnalysisScopeType;
+  scopeDescription: string;
 }
 
 export interface AreaAnalysisOptions {
+  geonameId?: number;
   coordinates?: {
     latitude: number;
     longitude: number;
@@ -66,41 +73,125 @@ export interface AreaAnalysisOptions {
   district?: string;
   state?: string;
   country?: string;
+  countryCode?: string;
+  analysisScope?: AnalysisScopeType;
 }
 
 /**
- * Resolves administrative boundary or geometry for any city or district in India and worldwide.
- * Supports:
- * 1. Geographic point intersection (filterBounds) across FAO GAUL datasets.
- * 2. Mapped Indian city dictionary lookup.
- * 3. Exact and prefix text matching on FAO GAUL Level 2 and Level 1.
- * 4. Nominatim server-side geocoding fallback for unlisted global cities.
- * 5. Radial buffer geometry fallback for coastal or unlisted geographic points.
+ * Resolves geographic analysis area for any city or place worldwide.
+ * Multi-tier resolution strategy:
+ * 1. Coordinates point-in-polygon on authoritative FAO GAUL Level 2 boundaries.
+ * 2. Coordinates point-in-polygon on FAO GAUL Level 1 regional boundaries.
+ * 3. Local GeoNames database lookup for unsupplied coordinates.
+ * 4. Documented 10km radial buffer fallback for islands, coasts, or unindexed boundaries.
+ * 5. Transparent analysis scope labeling (never mislabels a district as the entire city).
  */
 export async function resolveAdministrativeBoundary(
   targetArea: string,
   options?: AreaAnalysisOptions
 ): Promise<BoundaryResult | null> {
+  await initializeEarthEngine();
   const trimmed = targetArea.trim();
-  const titleCase =
-    trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+  let resolvedLat = options?.coordinates?.latitude;
+  let resolvedLon = options?.coordinates?.longitude;
+  let country = options?.country || '';
+  let countryCode = options?.countryCode || '';
+  let state = options?.state || '';
+  let geonameId = options?.geonameId;
 
-  // 1. PATH A: Coordinates provided via autocomplete or client request
+  // 1. If coordinates are missing, resolve them from the local GeoNames database
   if (
-    options?.coordinates &&
-    typeof options.coordinates.latitude === 'number' &&
-    typeof options.coordinates.longitude === 'number' &&
-    !Number.isNaN(options.coordinates.latitude) &&
-    !Number.isNaN(options.coordinates.longitude)
+    typeof resolvedLat !== 'number' ||
+    typeof resolvedLon !== 'number' ||
+    Number.isNaN(resolvedLat) ||
+    Number.isNaN(resolvedLon)
   ) {
-    const lat = options.coordinates.latitude;
-    const lon = options.coordinates.longitude;
-    const point = ee.Geometry.Point([lon, lat]);
+    try {
+      const db = getDbPool();
+      if (db) {
+        if (geonameId) {
+          const [geoRows]: any = await db.query(
+            'SELECT latitude, longitude, country_code, admin1_code FROM geonames_cities WHERE geoname_id = ? LIMIT 1',
+            [geonameId]
+          );
+          if (geoRows && geoRows.length > 0) {
+            resolvedLat = Number(geoRows[0].latitude);
+            resolvedLon = Number(geoRows[0].longitude);
+            countryCode = countryCode || geoRows[0].country_code;
+            country = country || getCountryName(countryCode);
+            state = state || geoRows[0].admin1_code;
+          }
+        }
 
-    // Check FAO/GAUL/2015/level2 first, then level1
+        if (typeof resolvedLat !== 'number') {
+          const normQuery = normalizeSearchText(trimmed);
+          const [nameRows]: any = await db.query(
+            `SELECT geoname_id, latitude, longitude, country_code, admin1_code 
+             FROM geonames_cities 
+             WHERE normalized_name = ? OR ascii_name = ?
+             ORDER BY population DESC LIMIT 1`,
+            [normQuery, normQuery]
+          );
+          if (nameRows && nameRows.length > 0) {
+            resolvedLat = Number(nameRows[0].latitude);
+            resolvedLon = Number(nameRows[0].longitude);
+            geonameId = geonameId || Number(nameRows[0].geoname_id);
+            countryCode = countryCode || nameRows[0].country_code;
+            country = country || getCountryName(countryCode);
+            state = state || nameRows[0].admin1_code;
+          }
+        }
+      }
+    } catch (lookupErr) {
+      console.warn('GeoNames lookup warning:', lookupErr);
+    }
+  }
+
+  // Fallback to local Indian Cities dictionary if still missing coordinates
+  if (typeof resolvedLat !== 'number' || typeof resolvedLon !== 'number') {
+    const localMatch = (indianCities as any[]).find(
+      (c) =>
+        c.name.toLowerCase() === trimmed.toLowerCase() ||
+        c.district.toLowerCase() === trimmed.toLowerCase()
+    );
+    if (localMatch && localMatch.latitude && localMatch.longitude) {
+      resolvedLat = Number(localMatch.latitude);
+      resolvedLon = Number(localMatch.longitude);
+      country = 'India';
+      countryCode = 'IN';
+      state = state || localMatch.state;
+    }
+  }
+
+  // 2. Perform Point-In-Polygon Boundary Resolution using verified coordinates
+  if (
+    typeof resolvedLat === 'number' &&
+    typeof resolvedLon === 'number' &&
+    !Number.isNaN(resolvedLat) &&
+    !Number.isNaN(resolvedLon)
+  ) {
+    const point = ee.Geometry.Point([resolvedLon, resolvedLat]);
+
+    // If explicit buffer scope was requested, construct 10km buffer directly
+    if (options?.analysisScope === 'CITY_BUFFER_10KM') {
+      const bufferGeom = point.buffer(10000);
+      return {
+        geometry: bufferGeom,
+        areaName: trimmed,
+        state: state || 'Local Region',
+        country: country || 'Global',
+        countryCode,
+        areaKm2: 314.16,
+        datasetUsed: 'Point-Coordinates 10km Radial Buffer',
+        analysisScope: 'CITY_BUFFER_10KM',
+        scopeDescription: `10 km radius circle (314.16 km²) centered at coordinates (${resolvedLat.toFixed(4)}°, ${resolvedLon.toFixed(4)}°)`,
+      };
+    }
+
+    // Candidate datasets for authoritative administrative units
     const candidateDatasets = [
-      { id: 'FAO/GAUL/2015/level2', nameField: 'ADM2_NAME' },
-      { id: 'FAO/GAUL/2015/level1', nameField: 'ADM1_NAME' },
+      { id: 'FAO/GAUL/2015/level2', nameField: 'ADM2_NAME', scope: 'ADMINISTRATIVE_DISTRICT' as AnalysisScopeType },
+      { id: 'FAO/GAUL/2015/level1', nameField: 'ADM1_NAME', scope: 'ADMINISTRATIVE_DISTRICT' as AnalysisScopeType },
     ];
 
     for (const ds of candidateDatasets) {
@@ -117,99 +208,80 @@ export async function resolveAdministrativeBoundary(
             evaluateEE<number>(geometry.area().divide(1e6)),
           ]);
 
-          const officialName = props[ds.nameField] || trimmed;
-          const state =
+          const officialDistrict = props[ds.nameField] || trimmed;
+          const resolvedState =
             props.ADM1_NAME ||
             props.GAUL1_NAME ||
-            options.state ||
+            state ||
             'Administrative Region';
-          const country =
+          const resolvedCountry =
             props.ADM0_NAME ||
             props.GAUL0_NAME ||
-            options.country ||
+            country ||
             'Global';
           const areaKm2 =
             Math.round(
               (calculatedKm2 || props.Shape_Area || 100) * 100
             ) / 100;
 
-          return {
-            feature,
-            geometry,
-            areaName: trimmed || officialName,
-            state,
-            country,
-            areaKm2,
-            datasetUsed: ds.id,
-          };
+          // Validate geometry has positive non-zero area
+          if (areaKm2 > 0) {
+            return {
+              feature,
+              geometry,
+              areaName: trimmed || officialDistrict,
+              state: resolvedState,
+              country: resolvedCountry,
+              countryCode,
+              areaKm2,
+              datasetUsed: ds.id,
+              analysisScope: 'ADMINISTRATIVE_DISTRICT',
+              scopeDescription: `Authoritative administrative district (${officialDistrict}) containing ${trimmed} from ${ds.id}`,
+            };
+          }
         }
       } catch (err) {
         console.warn(`Error resolving boundary by point for ${ds.id}:`, err);
       }
     }
 
-    // Circular buffer fallback (10km radius ~314 km²) around city coordinates
+    // 3. Documented Radial Buffer Fallback (10 km radius ~ 314.16 km²)
+    // Applied when city has no matching administrative boundary polygon (e.g. island, coast)
     try {
       const bufferGeom = point.buffer(10000);
       return {
         geometry: bufferGeom,
         areaName: trimmed,
-        state: options.state || 'Local Area',
-        country: options.country || 'Global',
+        state: state || 'Local Region',
+        country: country || 'Global',
+        countryCode,
         areaKm2: 314.16,
-        datasetUsed: 'Point Buffer (10km Radius)',
+        datasetUsed: 'Point-Coordinates 10km Radial Buffer',
+        analysisScope: 'CITY_BUFFER_10KM',
+        scopeDescription: `10 km radius circle (314.16 km²) centered at city coordinates (${resolvedLat.toFixed(4)}°, ${resolvedLon.toFixed(4)}°)`,
       };
-    } catch {
-      // Continue to text search if buffer fails
+    } catch (bufferErr) {
+      console.warn('Radial buffer creation error:', bufferErr);
     }
   }
 
-  // 2. PATH B: Local Indian Cities dictionary mapping
-  const localMatch = (indianCities as any[]).find(
-    (c) =>
-      c.name.toLowerCase() === trimmed.toLowerCase() ||
-      c.district.toLowerCase() === trimmed.toLowerCase()
-  );
-
-  if (localMatch && localMatch.latitude && localMatch.longitude) {
-    // Recursively resolve using exact coordinates
-    return resolveAdministrativeBoundary(trimmed, {
-      ...options,
-      coordinates: {
-        latitude: localMatch.latitude,
-        longitude: localMatch.longitude,
-      },
-      district: localMatch.district,
-      state: localMatch.state,
-      country: 'India',
-    });
-  }
-
-  // 3. PATH C: Direct text search in FAO GAUL datasets
+  // 4. Name-based Text Search fallback on FAO GAUL
   const candidateDatasets = [
     { id: 'FAO/GAUL/2015/level2', primaryField: 'ADM2_NAME' },
     { id: 'FAO/GAUL/2015/level1', primaryField: 'ADM1_NAME' },
     { id: 'FAO/GAUL/2025/level2', primaryField: 'GAUL2_NAME' },
   ];
 
-  const searchNames = [trimmed, titleCase];
-  if (localMatch && localMatch.district && !searchNames.includes(localMatch.district)) {
-    searchNames.push(localMatch.district);
-  }
-  if (options?.district && !searchNames.includes(options.district)) {
-    searchNames.push(options.district);
-  }
-
+  const titleCase = trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
   for (const ds of candidateDatasets) {
     try {
       const collection = ee.FeatureCollection(ds.id);
+      const filter = ee.Filter.or(
+        ee.Filter.eq(ds.primaryField, trimmed),
+        ee.Filter.eq(ds.primaryField, titleCase),
+        ee.Filter.stringStartsWith(ds.primaryField, titleCase)
+      );
 
-      const filterConditions = searchNames.flatMap((name) => [
-        ee.Filter.eq(ds.primaryField, name),
-        ee.Filter.stringStartsWith(ds.primaryField, name),
-      ]);
-
-      const filter = ee.Filter.or(...filterConditions);
       const matches = collection.filter(filter);
       const count = await evaluateEE<number>(matches.size());
 
@@ -222,65 +294,29 @@ export async function resolveAdministrativeBoundary(
           evaluateEE<number>(geometry.area().divide(1e6)),
         ]);
 
-        const areaName = trimmed || props[ds.primaryField] || titleCase;
-        const state =
-          props.ADM1_NAME ||
-          props.GAUL1_NAME ||
-          options?.state ||
-          'Administrative Level';
-        const country =
-          props.ADM0_NAME ||
-          props.GAUL0_NAME ||
-          options?.country ||
-          'Unknown Country';
-        const areaKm2 =
-          Math.round((calculatedKm2 || props.Shape_Area || 0) * 100) / 100;
+        const areaName = trimmed || props[ds.primaryField];
+        const resolvedState = props.ADM1_NAME || state || 'District Level';
+        const resolvedCountry = props.ADM0_NAME || country || 'Global';
+        const areaKm2 = Math.round((calculatedKm2 || 0) * 100) / 100;
 
-        return {
-          feature,
-          geometry,
-          areaName,
-          state,
-          country,
-          areaKm2,
-          datasetUsed: ds.id,
-        };
+        if (areaKm2 > 0) {
+          return {
+            feature,
+            geometry,
+            areaName,
+            state: resolvedState,
+            country: resolvedCountry,
+            countryCode,
+            areaKm2,
+            datasetUsed: ds.id,
+            analysisScope: 'ADMINISTRATIVE_DISTRICT',
+            scopeDescription: `Text-matched administrative boundary (${props[ds.primaryField]}) from ${ds.id}`,
+          };
+        }
       }
     } catch {
       continue;
     }
-  }
-
-  // 4. PATH D: Server-side Geocoding fallback via Nominatim
-  try {
-    const geoUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
-      trimmed
-    )}&format=jsonv2&limit=1`;
-
-    const geoRes = await fetch(geoUrl, {
-      headers: {
-        'User-Agent': 'VegetationNDVIAnalyzer/2.0 (student capstone project)',
-        Accept: 'application/json',
-      },
-      signal: AbortSignal.timeout(3500),
-    });
-
-    if (geoRes.ok) {
-      const geoData = await geoRes.json();
-      if (geoData && geoData.length > 0 && geoData[0].lat && geoData[0].lon) {
-        const lat = Number(geoData[0].lat);
-        const lon = Number(geoData[0].lon);
-
-        return resolveAdministrativeBoundary(trimmed, {
-          ...options,
-          coordinates: { latitude: lat, longitude: lon },
-          state: geoData[0].address?.state || options?.state,
-          country: geoData[0].address?.country || options?.country,
-        });
-      }
-    }
-  } catch (geoErr) {
-    console.warn('Geocoding fallback warning:', geoErr);
   }
 
   return null;
@@ -386,7 +422,6 @@ async function compute5YearNdvi(
   } catch (batchError) {
     console.warn('Batch 5-year evaluation warning, attempting resilient sequential evaluation:', batchError);
 
-    // Fallback: evaluate year by year if batch encounters any edge-case issue
     const yearlyResults: YearlyNdviResult[] = [];
     for (const year of calendarYears) {
       try {
@@ -438,9 +473,9 @@ async function compute5YearNdvi(
 /**
  * Main analysis pipeline for requested area.
  * Executes:
- * 1. Checks relational SQL cache (TiDB / MySQL) for instant return
+ * 1. Checks relational SQL cache (TiDB / MySQL) with location identity
  * 2. Authenticates with Google Earth Engine
- * 3. Resolves vector boundary geometry (FAO GAUL Level 2 / Level 1 / Point buffer)
+ * 3. Resolves vector boundary geometry (FAO GAUL Level 2 / Level 1 / 10km Buffer)
  * 4. Computes 5-year multi-temporal Sentinel-2 NDVI trajectory (2021-2025)
  * 5. Persists result into database tables: areas, analysis_requests, ndvi_results, reports
  */
@@ -454,14 +489,19 @@ export async function analyzeAreaNdvi(
 
   const requestedArea = targetArea.trim();
   const satelliteSource = 'COPERNICUS/S2_SR_HARMONIZED';
-  const boundarySource = 'FAO/GAUL/2025/level2';
 
-  // 1. Check TiDB cache BEFORE calling Google Earth Engine.
+  // 1. Check TiDB cache BEFORE calling Google Earth Engine
   try {
     const cached = await getCachedAnalysis(
       requestedArea,
-      satelliteSource,
-      boundarySource
+      {
+        geonameId: options?.geonameId,
+        country: options?.country,
+        state: options?.state,
+        coordinates: options?.coordinates,
+        analysisScope: options?.analysisScope,
+      },
+      satelliteSource
     );
 
     if (cached) {
@@ -469,19 +509,21 @@ export async function analyzeAreaNdvi(
 
       return {
         area: cached.request.area_name || requestedArea,
-        country: cached.request.country || options?.country || 'India',
+        country: cached.request.country || options?.country || 'Global',
         state: cached.request.state || options?.state || '',
         areaKm2: Number(cached.request.area_km2) || 0,
         years: cached.years,
         metadata: {
           satelliteSource,
-          boundarySource,
+          boundarySource: cached.request.boundary_source || 'FAO/GAUL/2025/level2',
+          analysisScope: cached.request.analysis_scope || 'ADMINISTRATIVE_DISTRICT',
+          scopeDescription: `Loaded from cache for ${cached.request.area_name} (${cached.request.country})`,
           calculatedAt: cached.request.completed_at
             ? new Date(cached.request.completed_at).toISOString()
             : new Date().toISOString(),
           persistedToDb: true,
           requestId: cached.request.id,
-          dbMessage: 'Returned from TiDB cache; Earth Engine calculation was skipped.',
+          dbMessage: 'Returned from database cache; satellite recalculation was skipped.',
         },
       };
     }
@@ -494,11 +536,11 @@ export async function analyzeAreaNdvi(
   // 2. Authenticate with Google Earth Engine
   await initializeEarthEngine();
 
-  // 3. Find matching administrative boundary and geometry
+  // 3. Find matching boundary or geometry
   const boundary = await resolveAdministrativeBoundary(requestedArea, options);
 
   if (!boundary) {
-    throw new Error('Area not found. Try a district name such as Pune.');
+    throw new Error('Area not found. Try a district or city name such as Pune, London, or Tokyo.');
   }
 
   // 4. Calculate all 5 complete calendar years using optimized unified evaluation
@@ -507,30 +549,38 @@ export async function analyzeAreaNdvi(
     boundary.areaKm2
   );
 
-  // 5. Build response object
+  // 5. Build response object with transparent analysis scope metadata
   const responseData: NdviAnalysisResponse = {
     area: boundary.areaName || requestedArea,
-    country: boundary.country || options?.country || 'India',
+    country: boundary.country || options?.country || 'Global',
     state: boundary.state || options?.state || '',
     areaKm2: boundary.areaKm2,
     years: yearlyResults,
     metadata: {
       satelliteSource,
       boundarySource: boundary.datasetUsed,
+      analysisScope: boundary.analysisScope,
+      scopeDescription: boundary.scopeDescription,
+      geonameId: options?.geonameId,
       calculatedAt: new Date().toISOString(),
     },
   };
 
-  // 6. Save newly calculated result to TiDB
+  // 6. Save newly calculated result to TiDB with full location identity
   try {
     const dbResult = await saveAnalysisToDatabase({
       areaName: boundary.areaName || requestedArea,
+      geonameId: options?.geonameId,
       state: boundary.state || options?.state || '',
-      country: boundary.country || options?.country || 'India',
+      country: boundary.country || options?.country || 'Global',
+      countryCode: boundary.countryCode || options?.countryCode,
       areaKm2: boundary.areaKm2,
-      years: yearlyResults,
+      latitude: options?.coordinates?.latitude,
+      longitude: options?.coordinates?.longitude,
+      analysisScope: boundary.analysisScope,
       boundarySource: boundary.datasetUsed,
       satelliteSource,
+      years: yearlyResults,
     });
 
     if (responseData.metadata) {

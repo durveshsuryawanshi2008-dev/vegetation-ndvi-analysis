@@ -19,8 +19,7 @@ export function getDbPool(): Pool | null {
   }
 
   try {
-    // Parse URL and configure options
-    const url = new URL(databaseUrl.replace(/^mysql:\/\//, 'http://')); // parse helper
+    const url = new URL(databaseUrl.replace(/^mysql:\/\//, 'http://'));
     const isTidb = databaseUrl.includes('tidbcloud.com') || databaseUrl.includes('tidb');
 
     const poolConfig: PoolOptions = {
@@ -33,7 +32,6 @@ export function getDbPool(): Pool | null {
       connectionLimit: 10,
       queueLimit: 0,
       connectTimeout: 10000,
-      // TiDB Cloud requires TLS/SSL
       ssl: isTidb || databaseUrl.includes('ssl=') ? { rejectUnauthorized: true } : undefined,
     };
 
@@ -46,7 +44,7 @@ export function getDbPool(): Pool | null {
 }
 
 /**
- * Automatically creates required tables in TiDB/MySQL if they do not already exist.
+ * Automatically creates required tables in TiDB/MySQL and runs non-destructive migrations.
  */
 export async function initializeDatabaseSchema(): Promise<boolean> {
   const db = getDbPool();
@@ -58,7 +56,7 @@ export async function initializeDatabaseSchema(): Promise<boolean> {
     return true;
   }
 
-  const queries = [
+  const baseQueries = [
     `CREATE TABLE IF NOT EXISTS users (
       id VARCHAR(36) PRIMARY KEY,
       email VARCHAR(255) NOT NULL UNIQUE,
@@ -71,15 +69,22 @@ export async function initializeDatabaseSchema(): Promise<boolean> {
     `CREATE TABLE IF NOT EXISTS areas (
       id INT AUTO_INCREMENT PRIMARY KEY,
       name VARCHAR(255) NOT NULL,
-      normalized_name VARCHAR(255) NOT NULL UNIQUE,
+      normalized_name VARCHAR(255) NOT NULL,
       state VARCHAR(255) NULL,
       country VARCHAR(255) NULL,
       area_km2 DECIMAL(12, 2) NULL,
       latitude DECIMAL(10, 6) NULL,
       longitude DECIMAL(10, 6) NULL,
+      geoname_id INT NULL,
+      country_code VARCHAR(10) NULL,
+      admin1_code VARCHAR(50) NULL,
+      analysis_scope VARCHAR(50) DEFAULT 'ADMINISTRATIVE_DISTRICT',
+      boundary_source VARCHAR(100) NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      INDEX idx_areas_name (name)
+      INDEX idx_areas_name (name),
+      INDEX idx_areas_norm (normalized_name),
+      INDEX idx_areas_geoname (geoname_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
     `CREATE TABLE IF NOT EXISTS analysis_requests (
@@ -124,14 +129,41 @@ export async function initializeDatabaseSchema(): Promise<boolean> {
       INDEX idx_reports_created (created_at DESC)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
+    `CREATE TABLE IF NOT EXISTS geonames_cities (
+      geoname_id INT PRIMARY KEY,
+      name VARCHAR(200) NOT NULL,
+      ascii_name VARCHAR(200) NOT NULL,
+      alternate_names VARCHAR(2000) NULL,
+      latitude DECIMAL(10, 7) NOT NULL,
+      longitude DECIMAL(10, 7) NOT NULL,
+      feature_class CHAR(1) NULL,
+      feature_code VARCHAR(10) NULL,
+      country_code VARCHAR(2) NOT NULL,
+      admin1_code VARCHAR(20) NULL,
+      admin2_code VARCHAR(80) NULL,
+      population BIGINT NULL,
+      elevation INT NULL,
+      timezone VARCHAR(40) NULL,
+      modification_date DATE NULL,
+      normalized_name VARCHAR(200) NOT NULL,
+      INDEX idx_geo_norm (normalized_name(50)),
+      INDEX idx_geo_ascii (ascii_name(50)),
+      INDEX idx_geo_country_pop (country_code, population DESC),
+      INDEX idx_geo_pop (population DESC)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
     `INSERT IGNORE INTO users (id, email, name, role)
      VALUES ('00000000-0000-0000-0000-000000000001', 'guest@ndvi-analyzer.edu', 'DBMS Researcher', 'student');`,
   ];
 
   try {
-    for (const sql of queries) {
+    for (const sql of baseQueries) {
       await db.execute(sql);
     }
+
+    // Non-destructive column migrations on areas
+    await runNonDestructiveMigrations(db);
+
     tablesInitialized = true;
     return true;
   } catch (error) {
@@ -140,19 +172,73 @@ export async function initializeDatabaseSchema(): Promise<boolean> {
   }
 }
 
+/**
+ * Non-destructive schema migration:
+ * 1. Safely adds geoname_id, country_code, analysis_scope, boundary_source to areas table.
+ * 2. Safely removes rigid single-column normalized_name UNIQUE index to allow cities with duplicate names.
+ * 3. Adds indexes for fast lookup without affecting existing IDs or foreign key relationships.
+ */
+async function runNonDestructiveMigrations(db: Pool) {
+  try {
+    const [cols]: any = await db.query('DESCRIBE areas');
+    const colNames = new Set(cols.map((c: any) => c.Field));
+
+    if (!colNames.has('geoname_id')) {
+      await db.query('ALTER TABLE areas ADD COLUMN geoname_id INT NULL AFTER longitude');
+    }
+    if (!colNames.has('country_code')) {
+      await db.query('ALTER TABLE areas ADD COLUMN country_code VARCHAR(10) NULL AFTER geoname_id');
+    }
+    if (!colNames.has('admin1_code')) {
+      await db.query('ALTER TABLE areas ADD COLUMN admin1_code VARCHAR(50) NULL AFTER country_code');
+    }
+    if (!colNames.has('analysis_scope')) {
+      await db.query("ALTER TABLE areas ADD COLUMN analysis_scope VARCHAR(50) DEFAULT 'ADMINISTRATIVE_DISTRICT' AFTER admin1_code");
+    }
+    if (!colNames.has('boundary_source')) {
+      await db.query('ALTER TABLE areas ADD COLUMN boundary_source VARCHAR(100) NULL AFTER analysis_scope');
+    }
+
+    // Check indexes on areas
+    const [indexes]: any = await db.query('SHOW INDEX FROM areas');
+    const indexNames = new Set(indexes.map((i: any) => i.Key_name));
+
+    // If normalized_name unique index exists, drop it and replace with non-unique index
+    const normIndex = indexes.find((i: any) => i.Key_name === 'normalized_name');
+    if (normIndex && normIndex.Non_unique === 0) {
+      await db.query('ALTER TABLE areas DROP INDEX normalized_name, ADD INDEX idx_areas_normalized (normalized_name)');
+    }
+
+    if (!indexNames.has('idx_areas_geoname')) {
+      await db.query('ALTER TABLE areas ADD INDEX idx_areas_geoname (geoname_id)');
+    }
+    if (!indexNames.has('idx_areas_country')) {
+      await db.query('ALTER TABLE areas ADD INDEX idx_areas_country (country)');
+    }
+  } catch (migrationErr) {
+    console.warn('Non-destructive migration warning (continuing safely):', migrationErr);
+  }
+}
+
 export interface SaveAnalysisParams {
   areaName: string;
+  geonameId?: number | null;
   state: string;
   country: string;
+  countryCode?: string;
   areaKm2: number;
-  years: YearlyNdviResult[];
+  latitude?: number | null;
+  longitude?: number | null;
+  analysisScope?: string;
   boundarySource?: string;
   satelliteSource?: string;
+  years: YearlyNdviResult[];
 }
 
 /**
- * Saves a completed NDVI analysis run to the relational database tables:
+ * Saves a completed NDVI analysis run to relational database tables:
  * areas, analysis_requests, ndvi_results, and reports.
+ * Uses geoname_id and composite place identity to safely prevent cross-city collisions.
  */
 export async function saveAnalysisToDatabase(params: SaveAnalysisParams): Promise<{
   success: boolean;
@@ -172,30 +258,93 @@ export async function saveAnalysisToDatabase(params: SaveAnalysisParams): Promis
     const requestId = crypto.randomUUID();
     const reportId = crypto.randomUUID();
 
-    // 1. Insert or update Area
-    await db.execute(
-      `INSERT INTO areas (name, normalized_name, state, country, area_km2, updated_at)
-       VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-       ON DUPLICATE KEY UPDATE 
-         state = VALUES(state),
-         country = VALUES(country),
-         area_km2 = VALUES(area_km2),
-         updated_at = CURRENT_TIMESTAMP`,
-      [params.areaName, normalizedName, params.state, params.country, params.areaKm2]
-    );
+    let areaId: number | null = null;
 
-    // Retrieve Area ID
-    const [areaRows]: any = await db.execute(
-      'SELECT id FROM areas WHERE normalized_name = ? LIMIT 1',
-      [normalizedName]
-    );
-
-    if (!areaRows || areaRows.length === 0) {
-      throw new Error('Failed to retrieve area record after insert');
+    // 1. Identify existing area record safely
+    if (params.geonameId) {
+      const [geoRows]: any = await db.execute(
+        'SELECT id FROM areas WHERE geoname_id = ? LIMIT 1',
+        [params.geonameId]
+      );
+      if (geoRows && geoRows.length > 0) {
+        areaId = geoRows[0].id;
+      }
     }
-    const areaId = areaRows[0].id;
 
-    // 2. Insert into analysis_requests
+    if (!areaId) {
+      const [nameRows]: any = await db.execute(
+        `SELECT id FROM areas 
+         WHERE (normalized_name = ? OR LOWER(name) = ?)
+           AND (LOWER(country) = ? OR ? IS NULL)
+           AND (state IS NULL OR LOWER(state) = ? OR ? IS NULL)
+         LIMIT 1`,
+        [
+          normalizedName,
+          normalizedName,
+          params.country.toLowerCase(),
+          params.country.toLowerCase(),
+          params.state ? params.state.toLowerCase() : null,
+          params.state ? params.state.toLowerCase() : null,
+        ]
+      );
+      if (nameRows && nameRows.length > 0) {
+        areaId = nameRows[0].id;
+      }
+    }
+
+    // 2. Insert or update area record
+    if (areaId) {
+      await db.execute(
+        `UPDATE areas SET 
+           name = ?, state = ?, country = ?, area_km2 = ?, 
+           latitude = ?, longitude = ?, geoname_id = COALESCE(?, geoname_id),
+           country_code = COALESCE(?, country_code),
+           analysis_scope = COALESCE(?, analysis_scope),
+           boundary_source = COALESCE(?, boundary_source),
+           updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [
+          params.areaName,
+          params.state,
+          params.country,
+          params.areaKm2,
+          params.latitude ?? null,
+          params.longitude ?? null,
+          params.geonameId ?? null,
+          params.countryCode ?? null,
+          params.analysisScope ?? 'ADMINISTRATIVE_DISTRICT',
+          params.boundarySource ?? null,
+          areaId,
+        ]
+      );
+    } else {
+      const [insertResult]: any = await db.execute(
+        `INSERT INTO areas 
+           (name, normalized_name, state, country, area_km2, latitude, longitude, 
+            geoname_id, country_code, analysis_scope, boundary_source, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        [
+          params.areaName,
+          normalizedName,
+          params.state,
+          params.country,
+          params.areaKm2,
+          params.latitude ?? null,
+          params.longitude ?? null,
+          params.geonameId ?? null,
+          params.countryCode ?? null,
+          params.analysisScope ?? 'ADMINISTRATIVE_DISTRICT',
+          params.boundarySource ?? null,
+        ]
+      );
+      areaId = insertResult.insertId;
+    }
+
+    if (!areaId) {
+      throw new Error('Failed to resolve or create area record');
+    }
+
+    // 3. Insert into analysis_requests
     await db.execute(
       `INSERT INTO analysis_requests 
         (id, user_id, area_id, requested_area_name, status, satellite_source, boundary_source, completed_at)
@@ -210,7 +359,7 @@ export async function saveAnalysisToDatabase(params: SaveAnalysisParams): Promis
       ]
     );
 
-    // 3. Insert each year into ndvi_results
+    // 4. Insert each year into ndvi_results
     for (const yr of params.years) {
       await db.execute(
         `INSERT INTO ndvi_results 
@@ -228,7 +377,7 @@ export async function saveAnalysisToDatabase(params: SaveAnalysisParams): Promis
       );
     }
 
-    // 4. Calculate overall status & 5-year trend
+    // 5. Calculate overall status & 5-year trend
     const validYears = params.years.filter((y) => y.avgNdvi !== null);
     let overallStatus = 'Unknown';
     let changeRate: number | null = null;
@@ -248,7 +397,7 @@ export async function saveAnalysisToDatabase(params: SaveAnalysisParams): Promis
     const title = `NDVI Analysis: ${params.areaName} (${params.country})`;
     const summary = `Multi-temporal vegetation evaluation across ${params.years.length} complete years (2021-2025). Latest observed vegetation health is "${overallStatus}" with an area of ${params.areaKm2.toLocaleString()} km².`;
 
-    // 5. Insert synthesized report
+    // 6. Insert synthesized report
     await db.execute(
       `INSERT INTO reports 
         (id, analysis_request_id, area_id, title, summary, overall_status, change_rate_5yr, metadata_json)
@@ -263,9 +412,13 @@ export async function saveAnalysisToDatabase(params: SaveAnalysisParams): Promis
         changeRate,
         JSON.stringify({
           area: params.areaName,
+          geonameId: params.geonameId,
           state: params.state,
           country: params.country,
+          countryCode: params.countryCode,
           areaKm2: params.areaKm2,
+          analysisScope: params.analysisScope,
+          boundarySource: params.boundarySource,
           analyzedYears: params.years.map((y) => y.year),
         }),
       ]
@@ -285,53 +438,82 @@ export async function saveAnalysisToDatabase(params: SaveAnalysisParams): Promis
   }
 }
 
-
 /**
- * Retrieves a previously completed 2021-2025 NDVI analysis from TiDB.
- *
- * This is used as a cache so repeated analyses of the same district
- * do not unnecessarily call Google Earth Engine again.
+ * Retrieves a previously completed 2021-2025 NDVI analysis from database cache.
+ * Matches on geoname_id, coordinates, or verified country/state identity to prevent cross-city collisions.
  */
 export async function getCachedAnalysis(
   areaName: string,
-  satelliteSource = 'COPERNICUS/S2_SR_HARMONIZED',
-  boundarySource = 'FAO/GAUL/2025/level2'
+  options?: {
+    geonameId?: number | null;
+    country?: string;
+    state?: string;
+    coordinates?: { latitude: number; longitude: number };
+    analysisScope?: string;
+  },
+  satelliteSource = 'COPERNICUS/S2_SR_HARMONIZED'
 ): Promise<{
   request: any;
   years: YearlyNdviResult[];
 } | null> {
   const db = getDbPool();
-
-  if (!db) {
-    return null;
-  }
+  if (!db) return null;
 
   try {
     await initializeDatabaseSchema();
 
     const normalizedName = areaName.trim().toLowerCase();
+    let querySql = `
+      SELECT
+        ar.id,
+        ar.requested_area_name,
+        ar.satellite_source,
+        ar.boundary_source,
+        ar.status,
+        ar.completed_at,
+        a.id AS area_id,
+        a.name AS area_name,
+        a.state,
+        a.country,
+        a.country_code,
+        a.area_km2,
+        a.latitude,
+        a.longitude,
+        a.geoname_id,
+        a.analysis_scope
+      FROM analysis_requests ar
+      INNER JOIN areas a ON ar.area_id = a.id
+      WHERE ar.status = 'COMPLETED'
+        AND ar.satellite_source = ?
+    `;
 
-    const [requestRows]: any = await db.execute(
-      `SELECT
-         ar.id,
-         ar.requested_area_name,
-         ar.satellite_source,
-         ar.boundary_source,
-         ar.status,
-         ar.completed_at,
-         a.name AS area_name,
-         a.state,
-         a.country,
-         a.area_km2
-       FROM analysis_requests ar
-       INNER JOIN areas a ON ar.area_id = a.id
-       WHERE (LOWER(a.name) = ? OR LOWER(ar.requested_area_name) = ? OR LOWER(a.normalized_name) = ?)
-         AND ar.status = 'COMPLETED'
-         AND ar.satellite_source = ?
-       ORDER BY ar.completed_at DESC
-       LIMIT 1`,
-      [normalizedName, normalizedName, normalizedName, satelliteSource]
-    );
+    const queryParams: any[] = [satelliteSource];
+
+    // Priority 1: Match by stable geoname_id
+    if (options?.geonameId) {
+      querySql += ' AND a.geoname_id = ?';
+      queryParams.push(options.geonameId);
+    }
+    // Priority 2: Match by coordinates (within ~5 km bounding tolerance)
+    else if (options?.coordinates?.latitude && options?.coordinates?.longitude) {
+      querySql += ' AND ABS(a.latitude - ?) < 0.05 AND ABS(a.longitude - ?) < 0.05';
+      queryParams.push(options.coordinates.latitude, options.coordinates.longitude);
+    }
+    // Priority 3: Match by normalized name and country
+    else {
+      querySql += `
+        AND (LOWER(a.name) = ? OR LOWER(ar.requested_area_name) = ? OR LOWER(a.normalized_name) = ?)
+        ${options?.country ? 'AND LOWER(a.country) = ?' : ''}
+      `;
+      queryParams.push(normalizedName, normalizedName, normalizedName);
+      if (options?.country) {
+        queryParams.push(options.country.trim().toLowerCase());
+      }
+    }
+
+    querySql += ' ORDER BY ar.completed_at DESC LIMIT 1';
+
+    const [requestRows]: any = await db.execute(querySql, queryParams);
 
     if (!requestRows || requestRows.length === 0) {
       return null;
@@ -386,13 +568,11 @@ export async function getCachedAnalysis(
 }
 
 /**
- * Fetches historical reports with area details from the database.
+ * Fetches historical reports with area details from database.
  */
 export async function getReports(limit = 25): Promise<DbReport[]> {
   const db = getDbPool();
-  if (!db) {
-    return [];
-  }
+  if (!db) return [];
 
   try {
     await initializeDatabaseSchema();
@@ -423,42 +603,6 @@ export async function getReports(limit = 25): Promise<DbReport[]> {
   } catch (error) {
     console.error('Error fetching reports from database:', error);
     return [];
-  }
-}
-
-/**
- * Retrieves detailed multi-year NDVI results for a specific request ID.
- */
-export async function getRequestResults(requestId: string): Promise<any> {
-  const db = getDbPool();
-  if (!db) return null;
-
-  try {
-    const [reqRows]: any = await db.execute(
-      `SELECT ar.*, a.name AS area_name, a.state, a.country, a.area_km2
-       FROM analysis_requests ar
-       LEFT JOIN areas a ON ar.area_id = a.id
-       WHERE ar.id = ? LIMIT 1`,
-      [requestId]
-    );
-
-    if (!reqRows || reqRows.length === 0) return null;
-
-    const [ndviRows]: any = await db.execute(
-      `SELECT year, avg_ndvi as avgNdvi, min_ndvi as minNdvi, max_ndvi as maxNdvi, vegetation_status as vegetationStatus
-       FROM ndvi_results
-       WHERE analysis_request_id = ?
-       ORDER BY year ASC`,
-      [requestId]
-    );
-
-    return {
-      request: reqRows[0],
-      years: ndviRows,
-    };
-  } catch (error) {
-    console.error('Error fetching request results:', error);
-    return null;
   }
 }
 

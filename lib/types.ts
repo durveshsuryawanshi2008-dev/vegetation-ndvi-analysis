@@ -22,6 +22,9 @@ export interface NdviAnalysisResponse {
   metadata?: {
     satelliteSource: string;
     boundarySource: string;
+    analysisScope?: 'ADMINISTRATIVE_DISTRICT' | 'CITY_BUFFER_10KM' | 'CUSTOM' | string;
+    scopeDescription?: string;
+    geonameId?: number | null;
     calculatedAt: string;
     requestId?: string;
     persistedToDb?: boolean;
@@ -29,15 +32,34 @@ export interface NdviAnalysisResponse {
   };
 }
 
+export interface LocationSuggestion {
+  geonameId?: number | null;
+  name: string;
+  asciiName?: string;
+  district?: string;
+  state?: string;
+  country: string;
+  countryCode?: string;
+  latitude: number;
+  longitude: number;
+  population?: number | null;
+  timezone?: string | null;
+  displayName: string;
+  source?: 'geonames' | 'local' | 'osm';
+}
+
 export interface NdviApiRequest {
   area: string;
+  geonameId?: number;
   district?: string;
   state?: string;
   country?: string;
+  countryCode?: string;
   coordinates?: {
     latitude: number;
     longitude: number;
   };
+  analysisScope?: 'ADMINISTRATIVE_DISTRICT' | 'CITY_BUFFER_10KM' | 'CUSTOM';
   years?: number[];
   cloudThreshold?: number;
 }

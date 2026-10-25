@@ -72,10 +72,13 @@ export async function POST(req: NextRequest) {
 
     // 3. Execute Earth Engine analysis
     const result = await analyzeAreaNdvi(area.trim(), {
+      geonameId: typeof body?.geonameId === 'number' ? body.geonameId : undefined,
       coordinates,
       district: typeof body?.district === 'string' ? body.district.trim() : undefined,
       state: typeof body?.state === 'string' ? body.state.trim() : undefined,
       country: typeof body?.country === 'string' ? body.country.trim() : undefined,
+      countryCode: typeof body?.countryCode === 'string' ? body.countryCode.trim() : undefined,
+      analysisScope: body?.analysisScope,
     });
 
     return NextResponse.json(result, { status: 200 });
