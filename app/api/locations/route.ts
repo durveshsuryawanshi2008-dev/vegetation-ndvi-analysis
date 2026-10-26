@@ -54,9 +54,20 @@ export async function GET(request: NextRequest) {
       if (allRows.length > 0) {
         const results: LocationSuggestion[] = allRows.map((r: any) => {
           const country = getCountryName(r.country_code);
-          const state = r.admin1_code || '';
-          const district = r.admin2_code || r.name;
+          // Filter out numeric admin codes (e.g. "16", "17", "11", "02") that are confusing in UI
+          const rawState = (r.admin1_code || '').trim();
+          const isNumericOrCode = /^\d+$/.test(rawState) || rawState.length <= 1;
+          const state = isNumericOrCode ? '' : rawState;
+          const district = r.admin2_code && !/^\d+$/.test(r.admin2_code) ? r.admin2_code : r.name;
           const pop = r.population ? Number(r.population) : null;
+
+          const displayParts = [r.name];
+          if (state && state.toLowerCase() !== r.name.toLowerCase()) {
+            displayParts.push(state);
+          }
+          if (country) {
+            displayParts.push(country);
+          }
 
           return {
             geonameId: Number(r.geoname_id),
@@ -70,7 +81,7 @@ export async function GET(request: NextRequest) {
             longitude: Number(r.longitude),
             population: pop,
             timezone: r.timezone,
-            displayName: `${r.name}, ${state ? `${state}, ` : ''}${country}`,
+            displayName: displayParts.join(', '),
             source: 'geonames',
           };
         });

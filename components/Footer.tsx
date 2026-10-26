@@ -10,12 +10,10 @@ export function Footer() {
         <div className="md:col-span-2 space-y-3">
           <div className="flex items-center gap-2 text-white font-display font-bold text-base">
             <Satellite className="w-5 h-5 text-eco-neon" />
-            <span>VEGETATION ANALYSIS & NDVI USING GOOGLE EARTH ENGINE</span>
+            <span>GLOBAL VEGETATION ANALYSIS &amp; NDVI INTELLIGENCE</span>
           </div>
           <p className="text-xs text-zinc-400 leading-relaxed max-w-md">
-            Academic College DBMS Project engineered for high-resolution multispectral remote sensing.
-            Computes 5-year normalized difference vegetation index (NDVI) time series utilizing
-            Copernicus Sentinel-2 Level-2A surface reflectance and FAO GAUL administrative boundaries.
+            Enterprise-grade geospatial platform delivering multi-temporal vegetation health analytics from Earth observation satellites. Automated server-side spectral indexing powered by Google Earth Engine.
           </p>
           <div className="flex items-center gap-3 text-xs font-mono text-zinc-500 pt-1">
             <span>Formula: (B8 - B4) / (B8 + B4)</span>
@@ -63,7 +61,7 @@ export function Footer() {
             </li>
             <li>
               <Link href="/about" className="hover:text-eco-neon transition-colors">
-                DBMS Schema & GEE Documentation
+                Platform Architecture &amp; Methodology
               </Link>
             </li>
           </ul>
@@ -71,7 +69,7 @@ export function Footer() {
       </div>
 
       <div className="max-w-7xl mx-auto pt-6 border-t border-white/[0.05] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-zinc-500">
-        <div>&copy; {new Date().getFullYear()} College DBMS Project &bull; Vegetation Analysis & NDVI</div>
+        <div>&copy; {new Date().getFullYear()} NDVI Analyzer &bull; Earth Observation &amp; Multispectral Analytics</div>
         <div className="flex items-center gap-4">
           <span>COPERNICUS / ESA</span>
           <span>&bull;</span>

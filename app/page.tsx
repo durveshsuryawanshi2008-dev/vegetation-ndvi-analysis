@@ -103,10 +103,10 @@ export default function HomePage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 space-y-12">
       <section className="text-center space-y-5 max-w-4xl mx-auto">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-eco-900/60 border border-eco-700/60 text-eco-neon text-xs font-mono">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-eco-900/60 border border-eco-700/60 text-eco-neon text-xs font-mono shadow-[0_0_15px_rgba(198,241,53,0.15)]">
           <Satellite className="w-3.5 h-3.5" />
           <span>
-            REAL-TIME EARTH OBSERVATION &bull; SENTINEL-2 HARMONIZED
+            GLOBAL EARTH OBSERVATION &bull; SENTINEL-2 SURFACE REFLECTANCE
           </span>
         </div>
 
@@ -118,9 +118,8 @@ export default function HomePage() {
         </h1>
 
         <p className="text-sm sm:text-base text-zinc-300 max-w-2xl mx-auto leading-relaxed">
-          College DBMS platform computing multi-year Normalized Difference Vegetation Index (NDVI)
-          directly from Google Earth Engine. Query administrative districts across 5 complete calendar years
-          (2021 &ndash; 2025) backed by a relational TiDB Cloud SQL database.
+          High-resolution satellite analytics calculating 5-year multi-temporal vegetation health (2021 &ndash; 2025)
+          for cities worldwide. Powered by Google Earth Engine, Copernicus Sentinel-2 multispectral imagery, and high-speed database caching.
         </p>
 
         {healthStatus &&
@@ -159,27 +158,26 @@ export default function HomePage() {
 
             <div className="space-y-1">
               <h3 className="font-display font-bold text-lg text-white">
-                Ready to Analyze Administrative Boundaries
+                Ready to Analyze Worldwide Vegetation Health
               </h3>
 
               <p className="text-xs sm:text-sm text-zinc-400 max-w-md mx-auto">
-                Search for an Indian city, select it from the suggestions,
-                and the corresponding administrative district will be analyzed
-                using the server-side Earth Engine pipeline.
+                Search any city or municipality worldwide to compute real-time
+                5-year NDVI trajectories using server-side Earth Engine satellite telemetry.
               </p>
             </div>
 
             <div className="pt-2 flex flex-wrap items-center justify-center gap-4 text-xs font-mono text-zinc-500">
               <span className="flex items-center gap-1.5">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                No Fake / Hardcoded Data
+                Real Satellite Telemetry
               </span>
 
               <span>&bull;</span>
 
               <span className="flex items-center gap-1.5">
                 <Database className="w-3.5 h-3.5 text-cyan-400" />
-                Relational SQL Logging
+                Persistent Historical Cache
               </span>
             </div>
           </div>

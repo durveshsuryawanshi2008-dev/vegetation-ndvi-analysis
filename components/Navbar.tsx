@@ -35,7 +35,7 @@ export function Navbar() {
   const navLinks = [
     { name: 'Analysis', href: '/' },
     { name: 'Reports', href: '/reports' },
-    { name: 'About & DBMS', href: '/about' },
+    { name: 'Methodology', href: '/about' },
   ];
 
   return (
@@ -55,7 +55,7 @@ export function Navbar() {
                 </span>
               </div>
               <p className="text-[10px] text-zinc-400 font-mono hidden sm:block">
-                Copernicus Sentinel-2 &bull; FAO GAUL
+                Global Satellite Earth Observation
               </p>
             </div>
           </Link>

@@ -49,7 +49,7 @@ export default function AboutPage() {
       <div className="space-y-4 max-w-3xl">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-eco-900 border border-eco-700 text-eco-neon text-xs font-mono">
           <BookOpen className="w-3.5 h-3.5" />
-          <span>COLLEGE DBMS CAPSTONE PROJECT DOCUMENTATION</span>
+          <span>PLATFORM ARCHITECTURE &amp; SATELLITE METHODOLOGY</span>
         </div>
         <h1 className="text-3xl sm:text-4xl font-extrabold font-display text-white tracking-tight">
           Vegetation Analysis &amp; NDVI Using Google Earth Engine

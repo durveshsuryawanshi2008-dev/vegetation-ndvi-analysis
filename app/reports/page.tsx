@@ -64,13 +64,13 @@ export default function ReportsPage() {
         <div className="space-y-2">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/60 border border-cyan-800 text-cyan-400 text-xs font-mono">
             <Database className="w-3.5 h-3.5" />
-            <span>TiDB CLOUD / MySQL RELATIONAL REPOSITORY</span>
+            <span>ENTERPRISE GEOSPATIAL REPOSITORY</span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold font-display text-white tracking-tight">
             Vegetation Intelligence Reports
           </h1>
           <p className="text-xs sm:text-sm text-zinc-400 font-mono">
-            Historical audit logs and synthesized 5-year NDVI reports persisted in the DBMS
+            Synthesized 5-year NDVI vegetation health records and spatial analysis reports
           </p>
         </div>
 

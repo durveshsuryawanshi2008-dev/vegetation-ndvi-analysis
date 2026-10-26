@@ -8,12 +8,12 @@ export function LoadingSkeleton({ areaName }: { areaName: string }) {
 
   const steps = [
     'Authenticating with Google Earth Engine Private Key...',
-    `Querying FAO/GAUL/2025/level2 boundary for "${areaName}"...`,
+    `Resolving boundary and spatial geometry for "${areaName}"...`,
     'Acquiring Copernicus Sentinel-2 Level-2A (SR) image collection...',
     'Filtering cloud cover (< 30%) and applying SCL scene classification masking...',
     'Generating 5-year median composites (2021, 2022, 2023, 2024, 2025)...',
     'Executing spatial reducers: (B8 - B4) / (B8 + B4) mean, min, max...',
-    'Categorizing ecological health & synchronizing with TiDB database...',
+    'Computing biophysical classification and updating database cache...',
   ];
 
   useEffect(() => {

@@ -36,9 +36,15 @@ export function MetricsGrid({ data }: MetricsGridProps) {
             {data.state ? `${data.state}, ` : ''}{data.country}
           </p>
         </div>
-        <div className="pt-2 text-[11px] font-mono text-zinc-500 border-t border-white/5 flex items-center gap-1.5">
-          <MapPin className="w-3 h-3 text-eco-neon" />
-          <span>FAO GAUL Level 2</span>
+        <div className="pt-2 text-[11px] font-mono text-zinc-500 border-t border-white/5 flex items-center gap-1.5 truncate">
+          <MapPin className="w-3 h-3 text-eco-neon shrink-0" />
+          <span className="truncate">
+            {data.metadata?.analysisScope === 'CITY_BUFFER_10KM'
+              ? '10 km Radial Buffer'
+              : data.metadata?.boundarySource
+              ? data.metadata.boundarySource.replace('FAO/GAUL/', 'GAUL ')
+              : 'Administrative Boundary'}
+          </span>
         </div>
       </div>
 

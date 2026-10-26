@@ -4,9 +4,9 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 
 export const metadata: Metadata = {
-  title: 'Vegetation Analysis & NDVI | Google Earth Engine & TiDB',
+  title: 'NDVI Analyzer | Global Satellite Earth Observation & Vegetation Intelligence',
   description:
-    'College DBMS Project: Multi-temporal vegetation health analysis and NDVI calculation using Google Earth Engine Sentinel-2 SR Harmonized imagery and FAO GAUL administrative boundaries.',
+    'Multi-temporal vegetation health analysis and NDVI calculation for cities worldwide using Google Earth Engine Sentinel-2 SR Harmonized imagery and TiDB Cloud.',
 };
 
 export default function RootLayout({

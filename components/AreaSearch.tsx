@@ -7,8 +7,8 @@ import {
   Sparkles,
   MapPin,
   Satellite,
-  Users,
   Globe2,
+  ArrowRight,
 } from 'lucide-react';
 import { LocationSuggestion } from '@/lib/types';
 
@@ -19,15 +19,13 @@ interface AreaSearchProps {
   errorMessage?: string | null;
 }
 
-function formatPopulation(pop?: number | null): string | null {
-  if (!pop || pop <= 0) return null;
-  if (pop >= 1_000_000) {
-    return `${(pop / 1_000_000).toFixed(1)}M`;
-  }
-  if (pop >= 1_000) {
-    return `${Math.round(pop / 1_000)}K`;
-  }
-  return pop.toLocaleString();
+function getCleanRegion(state?: string, country?: string): string {
+  // Strip numeric codes like "16", "17", "11", "02" and single-character codes
+  const trimmed = (state || '').trim();
+  const cleanState =
+    trimmed && !/^\d+$/.test(trimmed) && trimmed.length > 1 ? trimmed : '';
+  const parts = [cleanState, country].filter(Boolean);
+  return parts.join(', ');
 }
 
 export function AreaSearch({
@@ -181,23 +179,23 @@ export function AreaSearch({
   };
 
   const quickAreas = [
-    { geonameId: 1259229, name: 'Pune', district: 'Pune', state: 'Maharashtra', country: 'India', countryCode: 'IN', lat: 18.5204, lon: 73.8567, population: 3124458 },
-    { geonameId: 1277333, name: 'Bengaluru', district: 'Bangalore Urban', state: 'Karnataka', country: 'India', countryCode: 'IN', lat: 12.9716, lon: 77.5946, population: 8495492 },
-    { geonameId: 1275339, name: 'Mumbai', district: 'Mumbai Suburban', state: 'Maharashtra', country: 'India', countryCode: 'IN', lat: 19.0760, lon: 72.8777, population: 12691836 },
-    { geonameId: 1273294, name: 'Delhi', district: 'Delhi', state: 'Delhi', country: 'India', countryCode: 'IN', lat: 28.6139, lon: 77.2090, population: 11007835 },
-    { geonameId: 1269515, name: 'Jaipur', district: 'Jaipur', state: 'Rajasthan', country: 'India', countryCode: 'IN', lat: 26.9124, lon: 75.7873, population: 2711266 },
-    { geonameId: 2643743, name: 'London', district: 'Greater London', state: 'England', country: 'United Kingdom', countryCode: 'GB', lat: 51.5074, lon: -0.1278, population: 8961989 },
-    { geonameId: 2988507, name: 'Paris', district: 'Paris', state: 'Ile-de-France', country: 'France', countryCode: 'FR', lat: 48.8566, lon: 2.3522, population: 2138551 },
-    { geonameId: 1850147, name: 'Tokyo', district: 'Tokyo', state: 'Tookyoo', country: 'Japan', countryCode: 'JP', lat: 35.6762, lon: 139.6503, population: 9733276 },
-    { geonameId: 5128581, name: 'New York', district: 'New York', state: 'New York', country: 'United States', countryCode: 'US', lat: 40.7128, lon: -74.0060, population: 8804190 },
-    { geonameId: 3448439, name: 'São Paulo', district: 'São Paulo', state: 'Sao Paulo', country: 'Brazil', countryCode: 'BR', lat: -23.5475, lon: -46.6361, population: 12400232 },
+    { geonameId: 1259229, name: 'Pune', district: 'Pune', state: 'Maharashtra', country: 'India', countryCode: 'IN', lat: 18.5204, lon: 73.8567 },
+    { geonameId: 1277333, name: 'Bengaluru', district: 'Bangalore Urban', state: 'Karnataka', country: 'India', countryCode: 'IN', lat: 12.9716, lon: 77.5946 },
+    { geonameId: 1275339, name: 'Mumbai', district: 'Mumbai Suburban', state: 'Maharashtra', country: 'India', countryCode: 'IN', lat: 19.0760, lon: 72.8777 },
+    { geonameId: 1273294, name: 'Delhi', district: 'Delhi', state: 'Delhi', country: 'India', countryCode: 'IN', lat: 28.6139, lon: 77.2090 },
+    { geonameId: 2643743, name: 'London', district: 'Greater London', state: 'England', country: 'United Kingdom', countryCode: 'GB', lat: 51.5074, lon: -0.1278 },
+    { geonameId: 2988507, name: 'Paris', district: 'Paris', state: 'Ile-de-France', country: 'France', countryCode: 'FR', lat: 48.8566, lon: 2.3522 },
+    { geonameId: 1850147, name: 'Tokyo', district: 'Tokyo', state: 'Tokyo', country: 'Japan', countryCode: 'JP', lat: 35.6762, lon: 139.6503 },
+    { geonameId: 5128581, name: 'New York', district: 'New York', state: 'New York', country: 'United States', countryCode: 'US', lat: 40.7128, lon: -74.0060 },
+    { geonameId: 3448439, name: 'São Paulo', district: 'São Paulo', state: 'Sao Paulo', country: 'Brazil', countryCode: 'BR', lat: -23.5475, lon: -46.6361 },
+    { geonameId: 2147714, name: 'Sydney', district: 'Sydney', state: 'New South Wales', country: 'Australia', countryCode: 'AU', lat: -33.8688, lon: 151.2093 },
   ];
 
   return (
     <div className="w-full max-w-3xl mx-auto space-y-4">
       <div ref={searchRef} className="relative">
         <form onSubmit={handleSubmit} className="relative">
-          <div className="relative flex items-center rounded-2xl glass-panel-glow p-2 transition-all focus-within:border-eco-neon/50">
+          <div className="relative flex items-center rounded-2xl glass-panel-glow p-2 transition-all focus-within:border-eco-neon/60 focus-within:shadow-[0_0_25px_rgba(198,241,53,0.15)]">
             <div className="pl-3 pr-2 text-zinc-400">
               <MapPin className="w-5 h-5 text-eco-neon" />
             </div>
@@ -212,7 +210,7 @@ export function AreaSearch({
                 }
               }}
               disabled={isLoading}
-              placeholder="Search 236,000+ cities worldwide (e.g. Pune, London, Paris, Tokyo, São Paulo)..."
+              placeholder="Search any city worldwide (e.g. Pune, London, Paris, Tokyo, São Paulo)..."
               autoComplete="off"
               className="w-full bg-transparent py-3 px-2 text-white placeholder-zinc-500 text-sm sm:text-base focus:outline-none disabled:opacity-50"
             />
@@ -243,23 +241,26 @@ export function AreaSearch({
 
         {showSuggestions && (
           <div className="absolute z-50 left-0 right-0 mt-2 overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/95 backdrop-blur-xl shadow-2xl">
-            <div className="px-4 py-2 border-b border-white/5 text-[10px] font-mono text-zinc-500 flex items-center justify-between">
-              <span>WORLDWIDE CITIES (GEONAMES INDEX)</span>
+            <div className="px-4 py-2.5 border-b border-white/5 text-[10px] font-mono text-zinc-400 flex items-center justify-between bg-white/[0.02]">
+              <span className="flex items-center gap-1.5 font-semibold text-zinc-300">
+                <Globe2 className="w-3.5 h-3.5 text-eco-neon" />
+                GLOBAL CITIES &amp; TOWNS
+              </span>
               <span>{suggestions.length} MATCHES</span>
             </div>
 
             {suggestions.length > 0 ? (
               suggestions.map((suggestion, index) => {
-                const popFormatted = formatPopulation(suggestion.population);
+                const cleanRegion = getCleanRegion(suggestion.state, suggestion.country);
                 return (
                   <button
                     key={`${suggestion.geonameId || suggestion.name}-${suggestion.countryCode || ''}-${index}`}
                     type="button"
                     onClick={() => handleSuggestion(suggestion)}
-                    className="w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-eco-neon/10 transition-colors border-b border-white/5 last:border-b-0"
+                    className="group w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-eco-neon/10 transition-colors border-b border-white/5 last:border-b-0"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-xl bg-eco-900/50 border border-eco-700/40 flex items-center justify-center shrink-0">
+                      <div className="w-9 h-9 rounded-xl bg-eco-900/40 border border-eco-700/40 flex items-center justify-center shrink-0 group-hover:border-eco-neon/60 transition-colors">
                         <MapPin className="w-4 h-4 text-eco-neon" />
                       </div>
 
@@ -267,34 +268,31 @@ export function AreaSearch({
                         <p className="text-sm font-semibold text-white truncate flex items-center gap-2">
                           <span>{suggestion.name}</span>
                           {suggestion.countryCode && (
-                            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-white/[0.06] text-zinc-400">
+                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.08] text-zinc-300 border border-white/10">
                               {suggestion.countryCode}
                             </span>
                           )}
                         </p>
 
-                        <p className="text-xs text-zinc-400 truncate">
-                          {[suggestion.state, suggestion.country]
-                            .filter(Boolean)
-                            .join(', ')}
-                        </p>
+                        {cleanRegion && (
+                          <p className="text-xs text-zinc-400 truncate mt-0.5">
+                            {cleanRegion}
+                          </p>
+                        )}
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0 text-right">
-                      {popFormatted && (
-                        <span className="text-[11px] font-mono text-zinc-400 flex items-center gap-1 bg-white/[0.04] px-2 py-1 rounded-lg border border-white/[0.05]">
-                          <Users className="w-3 h-3 text-eco-neon/80" />
-                          {popFormatted}
-                        </span>
-                      )}
+                    <div className="shrink-0 text-right opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="text-xs font-mono text-eco-neon flex items-center gap-1">
+                        Select <ArrowRight className="w-3.5 h-3.5" />
+                      </span>
                     </div>
                   </button>
                 );
               })
             ) : !searchingLocations && areaInput.trim().length >= 2 ? (
               <div className="p-4 text-center text-xs font-mono text-zinc-500">
-                No cities found matching &quot;{areaInput.trim()}&quot;. Check spelling or try a nearby major city.
+                No cities found matching &quot;{areaInput.trim()}&quot;. Check spelling or try a nearby city.
               </div>
             ) : null}
           </div>
@@ -305,18 +303,14 @@ export function AreaSearch({
         <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs font-mono">
           <span className="text-zinc-500">Selected:</span>
           <span className="text-eco-neon font-semibold">{selectedLocation.name}</span>
-          <span className="text-zinc-600">&bull;</span>
-          <span className="text-zinc-400">
-            {[selectedLocation.state, selectedLocation.country].filter(Boolean).join(', ')}
-          </span>
-          {selectedLocation.latitude && selectedLocation.longitude ? (
+          {getCleanRegion(selectedLocation.state, selectedLocation.country) && (
             <>
               <span className="text-zinc-600">&bull;</span>
-              <span className="text-zinc-500">
-                ({selectedLocation.latitude.toFixed(4)}°, {selectedLocation.longitude.toFixed(4)}°)
+              <span className="text-zinc-400">
+                {getCleanRegion(selectedLocation.state, selectedLocation.country)}
               </span>
             </>
-          ) : null}
+          )}
         </div>
       )}
 

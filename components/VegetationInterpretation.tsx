@@ -43,7 +43,7 @@ export function VegetationInterpretation() {
             <span>Vegetation Index Interpretation &amp; Classification Standards</span>
           </h3>
           <p className="text-xs text-zinc-400 font-mono">
-            Scientific index interpretation scale used by the DBMS analysis engine
+            Scientific remote sensing scale used to assess photosynthetic vigor and canopy biomass
           </p>
         </div>
       </div>

@@ -19,10 +19,17 @@ export function AnalysisDashboard({ data, onRefresh, isRefreshing }: AnalysisDas
     window.print();
   };
 
+  // Clean state name if it contains numeric codes or is empty
+  const rawState = (data.state || '').trim();
+  const cleanState =
+    rawState && !/^\d+$/.test(rawState) && rawState.toLowerCase() !== data.area.toLowerCase()
+      ? rawState
+      : '';
+
   return (
     <div className="w-full space-y-8 animate-in fade-in duration-300">
       {/* Dashboard Header Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-panel rounded-2xl p-6 border-eco-neon/20">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-panel rounded-2xl p-6 border-eco-neon/20 shadow-[0_0_30px_rgba(198,241,53,0.05)]">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-mono uppercase px-2.5 py-0.5 rounded-full bg-eco-900 border border-eco-neon/40 text-eco-neon">
@@ -44,7 +51,7 @@ export function AnalysisDashboard({ data, onRefresh, isRefreshing }: AnalysisDas
           <h2 className="text-2xl sm:text-3xl font-bold font-display text-white tracking-tight flex items-center gap-2">
             <span>{data.area}</span>
             <span className="text-zinc-500 font-normal text-lg sm:text-xl">
-              &bull; {data.state ? `${data.state}, ` : ''}{data.country}
+              &bull; {cleanState ? `${cleanState}, ` : ''}{data.country}
             </span>
           </h2>
 
@@ -83,14 +90,14 @@ export function AnalysisDashboard({ data, onRefresh, isRefreshing }: AnalysisDas
         <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-950/30 border border-emerald-500/30 text-emerald-400 text-xs font-mono">
           <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
           <span>
-            Successfully recorded in SQL database tables: <code>areas</code>, <code>analysis_requests</code>, <code>ndvi_results</code>, and <code>reports</code>.
+            Analysis verified and persisted in cloud database cache.
           </span>
         </div>
       ) : data.metadata?.dbMessage ? (
         <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs font-mono">
           <Database className="w-4 h-4 shrink-0 text-zinc-500" />
           <span>
-            Database notice: {data.metadata.dbMessage}. (Configure <code>DATABASE_URL</code> in <code>.env.local</code> to auto-save to TiDB Cloud).
+            Database notice: {data.metadata.dbMessage}.
           </span>
         </div>
       ) : null}
