@@ -48,6 +48,39 @@ export interface LocationSuggestion {
   source?: 'geonames' | 'local' | 'osm';
 }
 
+export interface CityRankingItem {
+  id?: number;
+  rank: number;
+  name: string;
+  state?: string;
+  country: string;
+  countryCode?: string;
+  geonameId?: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  fiveYearAvgNdvi: number;
+  minNdvi: number;
+  maxNdvi: number;
+  variance: number; // max - min
+  stabilityScore: 'Ultra Stable' | 'High Stability' | 'Moderate' | 'Seasonal Shift';
+  trend5Yr: number; // percentage change
+  vegetationStatus: VegetationStatus;
+  category: 'greenest' | 'stable' | 'vulnerable' | 'balanced';
+  highlightBadge?: string;
+  description?: string;
+}
+
+export interface RankingsResponse {
+  summary: {
+    totalCities: number;
+    highestNdviCity: CityRankingItem;
+    mostStableCity: CityRankingItem;
+    lowestNdviCity: CityRankingItem;
+    mostImprovedCity?: CityRankingItem;
+  };
+  rankings: CityRankingItem[];
+}
+
 export interface NdviApiRequest {
   area: string;
   geonameId?: number;

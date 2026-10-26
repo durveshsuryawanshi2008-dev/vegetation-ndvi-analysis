@@ -6,6 +6,7 @@ import { AreaSearch } from '@/components/AreaSearch';
 import { AnalysisDashboard } from '@/components/AnalysisDashboard';
 import { LoadingSkeleton } from '@/components/LoadingSkeleton';
 import { ConfigAlert } from '@/components/ConfigAlert';
+import { CityRankings } from '@/components/CityRankings';
 import { NdviAnalysisResponse, LocationSuggestion } from '@/lib/types';
 
 import {
@@ -182,6 +183,14 @@ export default function HomePage() {
             </div>
           </div>
         )}
+      </section>
+
+      {/* Global City Vegetation Health Leaderboard & Benchmarks */}
+      <section className="w-full pt-10 border-t border-white/10">
+        <CityRankings
+          onSelectCity={runAnalysis}
+          currentCityName={activeLocation?.name}
+        />
       </section>
     </div>
   );
