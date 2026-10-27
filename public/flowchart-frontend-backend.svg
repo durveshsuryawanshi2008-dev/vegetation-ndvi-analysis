@@ -1,0 +1,411 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 920" width="1440" height="920" style="background:#060A07; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#080E09"/>
+      <stop offset="50%" stop-color="#050805"/>
+      <stop offset="100%" stop-color="#020403"/>
+    </linearGradient>
+
+    <linearGradient id="neonGlow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#C6F135"/>
+      <stop offset="100%" stop-color="#10B981"/>
+    </linearGradient>
+
+    <linearGradient id="cardClient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#111A13"/>
+      <stop offset="100%" stop-color="#0A110B"/>
+    </linearGradient>
+
+    <linearGradient id="cardApi" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#141E28"/>
+      <stop offset="100%" stop-color="#0A121A"/>
+    </linearGradient>
+
+    <linearGradient id="cardGee" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#241B10"/>
+      <stop offset="100%" stop-color="#140E08"/>
+    </linearGradient>
+
+    <linearGradient id="cardDb" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#16221E"/>
+      <stop offset="100%" stop-color="#0C1412"/>
+    </linearGradient>
+
+    <!-- Drop Shadows -->
+    <filter id="shadowFilter" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+
+    <filter id="glowGreen" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="5" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <!-- Markers for arrows -->
+    <marker id="arrowNeon" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#C6F135"/>
+    </marker>
+    <marker id="arrowCyan" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#06B6D4"/>
+    </marker>
+    <marker id="arrowEmerald" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#10B981"/>
+    </marker>
+    <marker id="arrowAmber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#F59E0B"/>
+    </marker>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="1440" height="920" fill="url(#bgGrad)"/>
+
+  <!-- Subtle Blueprint Grid Pattern -->
+  <g stroke="#ffffff" stroke-opacity="0.03" stroke-width="1">
+    <line x1="0" y1="80" x2="1440" y2="80"/>
+    <line x1="0" y1="160" x2="1440" y2="160"/>
+    <line x1="0" y1="240" x2="1440" y2="240"/>
+    <line x1="0" y1="320" x2="1440" y2="320"/>
+    <line x1="0" y1="400" x2="1440" y2="400"/>
+    <line x1="0" y1="480" x2="1440" y2="480"/>
+    <line x1="0" y1="560" x2="1440" y2="560"/>
+    <line x1="0" y1="640" x2="1440" y2="640"/>
+    <line x1="0" y1="720" x2="1440" y2="720"/>
+    <line x1="0" y1="800" x2="1440" y2="800"/>
+    
+    <line x1="120" y1="0" x2="120" y2="920"/>
+    <line x1="240" y1="0" x2="240" y2="920"/>
+    <line x1="360" y1="0" x2="360" y2="920"/>
+    <line x1="480" y1="0" x2="480" y2="920"/>
+    <line x1="600" y1="0" x2="600" y2="920"/>
+    <line x1="720" y1="0" x2="720" y2="920"/>
+    <line x1="840" y1="0" x2="840" y2="920"/>
+    <line x1="960" y1="0" x2="960" y2="920"/>
+    <line x1="1080" y1="0" x2="1080" y2="920"/>
+    <line x1="1200" y1="0" x2="1200" y2="920"/>
+    <line x1="1320" y1="0" x2="1320" y2="920"/>
+  </g>
+
+  <!-- ==================== HEADER BAR ==================== -->
+  <g transform="translate(60, 36)">
+    <!-- Pill Badge -->
+    <rect x="0" y="0" width="280" height="26" rx="13" fill="#1C3A15" stroke="#C6F135" stroke-opacity="0.4" stroke-width="1"/>
+    <circle cx="14" cy="13" r="4" fill="#C6F135"/>
+    <text x="26" y="17" fill="#C6F135" font-size="11" font-weight="600" font-family="monospace">FULL-STACK SYSTEM ARCHITECTURE</text>
+
+    <!-- Main Title -->
+    <text x="0" y="58" fill="#FFFFFF" font-size="28" font-weight="800" letter-spacing="-0.5">Frontend to Backend Connection Flow</text>
+    <text x="0" y="80" fill="#94A3B8" font-size="13">End-to-End Data Lifecycle: User Search, API Gateways, TiDB Cloud Relational Caching &amp; GEE Satellite Reduction</text>
+  </g>
+
+  <!-- ==================== 1. FRONTEND CLIENT LAYER ==================== -->
+  <g transform="translate(60, 150)" filter="url(#shadowFilter)">
+    <!-- Container Box -->
+    <rect width="360" height="710" rx="20" fill="url(#cardClient)" stroke="#C6F135" stroke-opacity="0.3" stroke-width="1.5"/>
+    
+    <!-- Header -->
+    <path d="M 0 20 Q 0 0 20 0 L 340 0 Q 360 0 360 20 L 360 56 L 0 56 Z" fill="#1C3A15" fill-opacity="0.6"/>
+    <circle cx="28" cy="28" r="7" fill="#C6F135"/>
+    <text x="44" y="33" fill="#FFFFFF" font-size="15" font-weight="700">1. Client / Frontend Layer</text>
+    <text x="280" y="32" fill="#C6F135" font-size="11" font-family="monospace">Next.js 14</text>
+
+    <!-- Sub-components inside Frontend -->
+    <!-- Card A: AreaSearch -->
+    <g transform="translate(20, 75)">
+      <rect width="320" height="110" rx="12" fill="#0E160F" stroke="#223324" stroke-width="1"/>
+      <text x="16" y="24" fill="#C6F135" font-size="13" font-weight="700">AreaSearch.tsx (Debounced Search)</text>
+      <text x="16" y="44" fill="#94A3B8" font-size="11">• 300ms Keystroke Debouncer</text>
+      <text x="16" y="62" fill="#94A3B8" font-size="11">• Fast Autocomplete via /api/locations</text>
+      <text x="16" y="80" fill="#94A3B8" font-size="11">• Clean Country Badges &amp; Sanitized Names</text>
+      <text x="16" y="98" fill="#34D399" font-size="10" font-family="monospace">&lt;LocationSuggestion&gt; (Lat, Lon, GeonameId)</text>
+    </g>
+
+    <!-- Card B: Orchestrator Page -->
+    <g transform="translate(20, 200)">
+      <rect width="320" height="100" rx="12" fill="#0E160F" stroke="#223324" stroke-width="1"/>
+      <text x="16" y="24" fill="#FFFFFF" font-size="13" font-weight="700">app/page.tsx (App Controller)</text>
+      <text x="16" y="44" fill="#94A3B8" font-size="11">• Active Location &amp; Analysis State</text>
+      <text x="16" y="62" fill="#94A3B8" font-size="11">• Mounts LoadingSkeleton with 7-step tracker</text>
+      <text x="16" y="80" fill="#94A3B8" font-size="11">• Dispatches POST payload to /api/ndvi</text>
+    </g>
+
+    <!-- Card C: Analysis Dashboard -->
+    <g transform="translate(20, 315)">
+      <rect width="320" height="175" rx="12" fill="#0E160F" stroke="#223324" stroke-width="1"/>
+      <text x="16" y="24" fill="#38BDF8" font-size="13" font-weight="700">AnalysisDashboard.tsx (Visual Hub)</text>
+      
+      <rect x="16" y="36" width="288" height="30" rx="6" fill="#132316"/>
+      <text x="24" y="55" fill="#C6F135" font-size="11" font-weight="600">MetricsGrid: 4 KPI Cards (Territory, km², NDVI)</text>
+
+      <rect x="16" y="72" width="288" height="30" rx="6" fill="#132316"/>
+      <text x="24" y="91" fill="#38BDF8" font-size="11" font-weight="600">NdviChart: 5-Year Recharts (Line/Bar YoY)</text>
+
+      <rect x="16" y="108" width="288" height="30" rx="6" fill="#132316"/>
+      <text x="24" y="127" fill="#A7F3D0" font-size="11" font-weight="600">YearlyTable: Density Bars (0-100%) &amp; Delta</text>
+
+      <rect x="16" y="144" width="288" height="24" rx="4" fill="#1E293B"/>
+      <text x="24" y="160" fill="#F8FAFC" font-size="10" font-family="monospace">Badge: Administrative District vs 10km Buffer</text>
+    </g>
+
+    <!-- Card D: Leaderboard -->
+    <g transform="translate(20, 505)">
+      <rect width="320" height="180" rx="12" fill="#0E160F" stroke="#223324" stroke-width="1"/>
+      <text x="16" y="24" fill="#F59E0B" font-size="13" font-weight="700">CityRankings.tsx (Global Benchmarks)</text>
+      <text x="16" y="44" fill="#94A3B8" font-size="11">• 4 Spotlight Cards (Peak Greenery, Stable)</text>
+      <text x="16" y="62" fill="#94A3B8" font-size="11">• Multi-Filter Tabs (Top 5, Constant Avg, Urban)</text>
+      <text x="16" y="80" fill="#94A3B8" font-size="11">• 1-Click "Analyze" to stream live GEE data</text>
+      
+      <!-- Mini Mock Table -->
+      <rect x="16" y="92" width="288" height="22" rx="4" fill="#182319"/>
+      <text x="24" y="107" fill="#C6F135" font-size="10" font-family="monospace">#1 London (UK) • 0.4855 NDVI • Peak</text>
+      
+      <rect x="16" y="118" width="288" height="22" rx="4" fill="#182319"/>
+      <text x="24" y="133" fill="#38BDF8" font-size="10" font-family="monospace">#2 Tokyo (JP) • ±0.0136 Var • Ultra Stable</text>
+
+      <rect x="16" y="144" width="288" height="22" rx="4" fill="#182319"/>
+      <text x="24" y="159" fill="#F43F5E" font-size="10" font-family="monospace">#3 Mumbai (IN) • 0.2378 NDVI • Low Canopy</text>
+    </g>
+  </g>
+
+  <!-- ==================== 2. API ROUTE GATEWAY ==================== -->
+  <g transform="translate(480, 150)" filter="url(#shadowFilter)">
+    <!-- Container Box -->
+    <rect width="310" height="710" rx="20" fill="url(#cardApi)" stroke="#06B6D4" stroke-opacity="0.3" stroke-width="1.5"/>
+    
+    <!-- Header -->
+    <path d="M 0 20 Q 0 0 20 0 L 290 0 Q 310 0 310 20 L 310 56 L 0 56 Z" fill="#082F49" fill-opacity="0.6"/>
+    <circle cx="28" cy="28" r="7" fill="#06B6D4"/>
+    <text x="44" y="33" fill="#FFFFFF" font-size="15" font-weight="700">2. API Gateways &amp; Routes</text>
+    <text x="240" y="32" fill="#06B6D4" font-size="11" font-family="monospace">Next.js</text>
+
+    <!-- Route 1: Locations -->
+    <g transform="translate(20, 75)">
+      <rect width="270" height="110" rx="12" fill="#0B131B" stroke="#162E3E" stroke-width="1"/>
+      <rect x="12" y="12" width="46" height="18" rx="4" fill="#0284C7"/>
+      <text x="18" y="25" fill="#FFFFFF" font-size="10" font-weight="700">GET</text>
+      <text x="66" y="26" fill="#E2E8F0" font-size="12" font-weight="700">/api/locations</text>
+      <text x="14" y="52" fill="#94A3B8" font-size="11">• Queries geonames_cities index</text>
+      <text x="14" y="70" fill="#94A3B8" font-size="11">• Filters numeric "16", "17" codes</text>
+      <text x="14" y="88" fill="#94A3B8" font-size="11">• Response latency &lt; 15ms</text>
+      <text x="14" y="104" fill="#38BDF8" font-size="10" font-family="monospace">Returns: LocationSuggestion[]</text>
+    </g>
+
+    <!-- Route 2: NDVI Engine -->
+    <g transform="translate(20, 205)">
+      <rect width="270" height="235" rx="12" fill="#0B131B" stroke="#0284C7" stroke-width="1.5"/>
+      <rect x="12" y="12" width="52" height="18" rx="4" fill="#10B981"/>
+      <text x="18" y="25" fill="#FFFFFF" font-size="10" font-weight="700">POST</text>
+      <text x="72" y="26" fill="#E2E8F0" font-size="12" font-weight="700">/api/ndvi</text>
+      
+      <rect x="12" y="40" width="246" height="46" rx="6" fill="#082F49"/>
+      <text x="18" y="56" fill="#38BDF8" font-size="11" font-weight="700">Step A: Check DB Cache</text>
+      <text x="18" y="74" fill="#94A3B8" font-size="10">Match geoname_id, coords or name</text>
+
+      <rect x="12" y="94" width="246" height="60" rx="6" fill="#082F49"/>
+      <text x="18" y="110" fill="#F59E0B" font-size="11" font-weight="700">Step B: Resolve Spatial Boundary</text>
+      <text x="18" y="126" fill="#94A3B8" font-size="10">Point-in-polygon on GAUL L2 / L1</text>
+      <text x="18" y="142" fill="#F59E0B" font-size="10">Fallback: 10km buffer (314.16 km²)</text>
+
+      <rect x="12" y="162" width="246" height="60" rx="6" fill="#082F49"/>
+      <text x="18" y="178" fill="#10B981" font-size="11" font-weight="700">Step C: Execute GEE Pipeline</text>
+      <text x="18" y="194" fill="#94A3B8" font-size="10">Sentinel-2 5-Yr median reducers</text>
+      <text x="18" y="210" fill="#10B981" font-size="10">Runtime: 3.5s - 5.0s (memory-safe)</text>
+    </g>
+
+    <!-- Route 3: Rankings -->
+    <g transform="translate(20, 460)">
+      <rect width="270" height="110" rx="12" fill="#0B131B" stroke="#162E3E" stroke-width="1"/>
+      <rect x="12" y="12" width="46" height="18" rx="4" fill="#0284C7"/>
+      <text x="18" y="25" fill="#FFFFFF" font-size="10" font-weight="700">GET</text>
+      <text x="66" y="26" fill="#E2E8F0" font-size="12" font-weight="700">/api/rankings</text>
+      <text x="14" y="52" fill="#94A3B8" font-size="11">• Aggregates all DB city analyses</text>
+      <text x="14" y="70" fill="#94A3B8" font-size="11">• Computes 5-Yr mean, variance &amp; trend</text>
+      <text x="14" y="88" fill="#94A3B8" font-size="11">• Classifies canopy stability</text>
+      <text x="14" y="104" fill="#38BDF8" font-size="10" font-family="monospace">Returns: RankingsResponse</text>
+    </g>
+
+    <!-- Route 4: Reports -->
+    <g transform="translate(20, 585)">
+      <rect width="270" height="100" rx="12" fill="#0B131B" stroke="#162E3E" stroke-width="1"/>
+      <rect x="12" y="12" width="46" height="18" rx="4" fill="#0284C7"/>
+      <text x="18" y="25" fill="#FFFFFF" font-size="10" font-weight="700">GET</text>
+      <text x="66" y="26" fill="#E2E8F0" font-size="12" font-weight="700">/api/reports</text>
+      <text x="14" y="52" fill="#94A3B8" font-size="11">• Reads audit log of past queries</text>
+      <text x="14" y="70" fill="#94A3B8" font-size="11">• Returns JSON metadata &amp; status</text>
+      <text x="14" y="88" fill="#38BDF8" font-size="10" font-family="monospace">Historical Audited Reports</text>
+    </g>
+  </g>
+
+  <!-- ==================== 3. DATABASE / CACHE LAYER ==================== -->
+  <g transform="translate(850, 150)" filter="url(#shadowFilter)">
+    <!-- Container Box -->
+    <rect width="260" height="340" rx="20" fill="url(#cardDb)" stroke="#10B981" stroke-opacity="0.3" stroke-width="1.5"/>
+    
+    <!-- Header -->
+    <path d="M 0 20 Q 0 0 20 0 L 240 0 Q 260 0 260 20 L 260 56 L 0 56 Z" fill="#064E3B" fill-opacity="0.6"/>
+    <circle cx="28" cy="28" r="7" fill="#10B981"/>
+    <text x="44" y="33" fill="#FFFFFF" font-size="14" font-weight="700">3. TiDB Cloud MySQL</text>
+    <text x="195" y="32" fill="#10B981" font-size="11" font-family="monospace">SQL DB</text>
+
+    <!-- Tables -->
+    <g transform="translate(15, 70)">
+      <rect width="230" height="42" rx="8" fill="#06281E" stroke="#10B981" stroke-opacity="0.3" stroke-width="1"/>
+      <text x="12" y="22" fill="#C6F135" font-size="11" font-weight="700">geonames_cities</text>
+      <text x="12" y="36" fill="#94A3B8" font-size="9" font-family="monospace">236,652 Cities • Pop, Coords, Codes</text>
+    </g>
+
+    <g transform="translate(15, 120)">
+      <rect width="230" height="42" rx="8" fill="#06281E" stroke="#10B981" stroke-opacity="0.3" stroke-width="1"/>
+      <text x="12" y="22" fill="#34D399" font-size="11" font-weight="700">areas (Composite Unique)</text>
+      <text x="12" y="36" fill="#94A3B8" font-size="9" font-family="monospace">(name, country, state) &amp; geoname_id</text>
+    </g>
+
+    <g transform="translate(15, 170)">
+      <rect width="230" height="42" rx="8" fill="#06281E" stroke="#10B981" stroke-opacity="0.3" stroke-width="1"/>
+      <text x="12" y="22" fill="#34D399" font-size="11" font-weight="700">ndvi_results (5-Yr Series)</text>
+      <text x="12" y="36" fill="#94A3B8" font-size="9" font-family="monospace">avg_ndvi, min_ndvi, max_ndvi (2021-25)</text>
+    </g>
+
+    <g transform="translate(15, 220)">
+      <rect width="230" height="42" rx="8" fill="#06281E" stroke="#10B981" stroke-opacity="0.3" stroke-width="1"/>
+      <text x="12" y="22" fill="#34D399" font-size="11" font-weight="700">analysis_requests</text>
+      <text x="12" y="36" fill="#94A3B8" font-size="9" font-family="monospace">status: COMPLETED, PENDING, FAILED</text>
+    </g>
+
+    <g transform="translate(15, 270)">
+      <rect width="230" height="42" rx="8" fill="#06281E" stroke="#10B981" stroke-opacity="0.3" stroke-width="1"/>
+      <text x="12" y="22" fill="#34D399" font-size="11" font-weight="700">reports</text>
+      <text x="12" y="36" fill="#94A3B8" font-size="9" font-family="monospace">Synthesized executive reports &amp; JSON</text>
+    </g>
+  </g>
+
+  <!-- ==================== 4. GOOGLE EARTH ENGINE LAYER ==================== -->
+  <g transform="translate(1160, 150)" filter="url(#shadowFilter)">
+    <!-- Container Box -->
+    <rect width="240" height="710" rx="20" fill="url(#cardGee)" stroke="#F59E0B" stroke-opacity="0.3" stroke-width="1.5"/>
+    
+    <!-- Header -->
+    <path d="M 0 20 Q 0 0 20 0 L 220 0 Q 240 0 240 20 L 240 56 L 0 56 Z" fill="#78350F" fill-opacity="0.6"/>
+    <circle cx="28" cy="28" r="7" fill="#F59E0B"/>
+    <text x="44" y="33" fill="#FFFFFF" font-size="14" font-weight="700">4. Google Earth Engine</text>
+    <text x="180" y="32" fill="#F59E0B" font-size="11" font-family="monospace">Cloud</text>
+
+    <!-- GEE Step 1: Auth -->
+    <g transform="translate(15, 75)">
+      <rect width="210" height="85" rx="10" fill="#1C1309" stroke="#3D2810" stroke-width="1"/>
+      <text x="12" y="22" fill="#FBBF24" font-size="11" font-weight="700">Service Account Auth</text>
+      <text x="12" y="40" fill="#94A3B8" font-size="10">• JWT Private Key Authentication</text>
+      <text x="12" y="56" fill="#94A3B8" font-size="10">• Project: vegetation-ndvi-analysis</text>
+      <text x="12" y="72" fill="#94A3B8" font-size="10">• Token auto-refresh cycle</text>
+    </g>
+
+    <!-- GEE Step 2: Boundaries -->
+    <g transform="translate(15, 175)">
+      <rect width="210" height="120" rx="10" fill="#1C1309" stroke="#3D2810" stroke-width="1"/>
+      <text x="12" y="22" fill="#FBBF24" font-size="11" font-weight="700">Boundary Resolution</text>
+      <text x="12" y="40" fill="#94A3B8" font-size="10">• Point: ee.Geometry.Point()</text>
+      <text x="12" y="56" fill="#94A3B8" font-size="10">• FAO/GAUL/2015/level2</text>
+      <text x="12" y="72" fill="#94A3B8" font-size="10">• FAO/GAUL/2015/level1</text>
+      <text x="12" y="88" fill="#F59E0B" font-size="10" font-weight="600">Fallback: point.buffer(10000)</text>
+      <text x="12" y="104" fill="#94A3B8" font-size="9" font-family="monospace">10km Radial Circle (314 km²)</text>
+    </g>
+
+    <!-- GEE Step 3: Satellite Reduction -->
+    <g transform="translate(15, 310)">
+      <rect width="210" height="230" rx="10" fill="#1C1309" stroke="#F59E0B" stroke-opacity="0.4" stroke-width="1"/>
+      <text x="12" y="22" fill="#FBBF24" font-size="11" font-weight="700">Sentinel-2 S2_SR Pipeline</text>
+      <text x="12" y="42" fill="#C6F135" font-size="10" font-family="monospace">COPERNICUS/S2_SR_HARMONIZED</text>
+      <text x="12" y="60" fill="#94A3B8" font-size="10">• Bands: ['B8', 'B4', 'SCL'] only</text>
+      <text x="12" y="76" fill="#94A3B8" font-size="10">• Memory reduction: > 80%</text>
+      <text x="12" y="94" fill="#94A3B8" font-size="10">• SCL Cloud/Shadow Masking</text>
+      <text x="12" y="112" fill="#94A3B8" font-size="10">• Per-scene float NDVI formula:</text>
+      
+      <rect x="12" y="122" width="186" height="26" rx="4" fill="#070C08"/>
+      <text x="20" y="139" fill="#C6F135" font-size="10" font-weight="700" font-family="monospace">(B8 - B4) / (B8 + B4)</text>
+
+      <text x="12" y="165" fill="#94A3B8" font-size="10">• 5-Year Median Compositing</text>
+      <text x="12" y="181" fill="#94A3B8" font-size="10">• Adaptive spatial scaling:</text>
+      <text x="20" y="197" fill="#F59E0B" font-size="9" font-family="monospace">150m (&lt;2k km²) | 300m | 500m</text>
+      <text x="12" y="215" fill="#10B981" font-size="10" font-weight="600">Zero Memory Limit Crashes</text>
+    </g>
+
+    <!-- GEE Step 4: Reducers -->
+    <g transform="translate(15, 555)">
+      <rect width="210" height="130" rx="10" fill="#1C1309" stroke="#3D2810" stroke-width="1"/>
+      <text x="12" y="22" fill="#FBBF24" font-size="11" font-weight="700">Spatial Reducers</text>
+      <text x="12" y="40" fill="#94A3B8" font-size="10">• ee.Reducer.mean()</text>
+      <text x="12" y="56" fill="#94A3B8" font-size="10">• ee.Reducer.min()</text>
+      <text x="12" y="72" fill="#94A3B8" font-size="10">• ee.Reducer.max()</text>
+      <text x="12" y="92" fill="#10B981" font-size="10" font-weight="700">Unified ee.Dictionary roundtrip</text>
+      <text x="12" y="108" fill="#94A3B8" font-size="10">All 5 years evaluated in 3.5s!</text>
+    </g>
+  </g>
+
+  <!-- ==================== FLOW CONNECTOR ARROWS & LABELS ==================== -->
+  <!-- 1. Frontend Search -> API Locations -->
+  <path d="M 360 215 Q 420 215 470 215" fill="none" stroke="#C6F135" stroke-width="2" marker-end="url(#arrowNeon)"/>
+  <rect x="375" y="195" width="80" height="18" rx="4" fill="#070C08" stroke="#C6F135" stroke-width="0.8"/>
+  <text x="382" y="208" fill="#C6F135" font-size="9" font-weight="700" font-family="monospace">1. Search Query</text>
+
+  <!-- 2. API Locations <-> Database -->
+  <path d="M 770 215 Q 810 215 840 215" fill="none" stroke="#C6F135" stroke-width="1.8" marker-end="url(#arrowNeon)"/>
+  <rect x="775" y="195" width="65" height="18" rx="4" fill="#070C08" stroke="#C6F135" stroke-width="0.8"/>
+  <text x="780" y="208" fill="#C6F135" font-size="9" font-weight="700" font-family="monospace">2. &lt;15ms DB</text>
+
+  <!-- 3. Frontend City Select -> API NDVI -->
+  <path d="M 360 380 Q 420 380 470 380" fill="none" stroke="#06B6D4" stroke-width="2.5" marker-end="url(#arrowCyan)"/>
+  <rect x="368" y="360" width="95" height="18" rx="4" fill="#070C08" stroke="#06B6D4" stroke-width="0.8"/>
+  <text x="374" y="373" fill="#06B6D4" font-size="9" font-weight="700" font-family="monospace">3. Analyze Request</text>
+
+  <!-- 4. API NDVI -> Check DB Cache -->
+  <path d="M 770 380 Q 810 380 840 380" fill="none" stroke="#10B981" stroke-width="2" stroke-dasharray="4" marker-end="url(#arrowEmerald)"/>
+  <rect x="772" y="360" width="72" height="18" rx="4" fill="#070C08" stroke="#10B981" stroke-width="0.8"/>
+  <text x="777" y="373" fill="#10B981" font-size="9" font-weight="700" font-family="monospace">4. Cache Check</text>
+
+  <!-- Cache Hit Return Flow (Dotted curve back to client) -->
+  <path d="M 850 410 Q 640 450 365 425" fill="none" stroke="#34D399" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arrowEmerald)"/>
+  <rect x="540" y="420" width="135" height="18" rx="4" fill="#070C08" stroke="#34D399" stroke-width="0.8"/>
+  <text x="546" y="433" fill="#34D399" font-size="9" font-weight="700" font-family="monospace">Cache Hit: Fast Return (&lt;350ms)</text>
+
+  <!-- 5. API NDVI (Cache Miss) -> GEE Pipeline -->
+  <path d="M 770 300 Q 950 120 1150 250" fill="none" stroke="#F59E0B" stroke-width="2.5" marker-end="url(#arrowAmber)"/>
+  <rect x="910" y="160" width="140" height="20" rx="4" fill="#070C08" stroke="#F59E0B" stroke-width="0.8"/>
+  <text x="918" y="174" fill="#F59E0B" font-size="9" font-weight="700" font-family="monospace">5. Cache Miss: Compute GEE</text>
+
+  <!-- 6. GEE Pipeline Returns Results -> API NDVI -->
+  <path d="M 1160 520 Q 980 620 775 420" fill="none" stroke="#F59E0B" stroke-width="2" marker-end="url(#arrowAmber)"/>
+  <rect x="910" y="540" width="150" height="20" rx="4" fill="#070C08" stroke="#F59E0B" stroke-width="0.8"/>
+  <text x="916" y="554" fill="#F59E0B" font-size="9" font-weight="700" font-family="monospace">6. Evaluated 5-Yr NDVI Data</text>
+
+  <!-- 7. API NDVI -> Save to TiDB DB -->
+  <path d="M 770 410 Q 805 440 842 420" fill="none" stroke="#10B981" stroke-width="2" marker-end="url(#arrowEmerald)"/>
+  <rect x="770" y="435" width="85" height="18" rx="4" fill="#070C08" stroke="#10B981" stroke-width="0.8"/>
+  <text x="776" y="448" fill="#10B981" font-size="9" font-weight="700" font-family="monospace">7. SQL Persistence</text>
+
+  <!-- 8. Return Final Payload to Client UI -->
+  <path d="M 480 410 Q 425 430 365 405" fill="none" stroke="#06B6D4" stroke-width="2.5" marker-end="url(#arrowCyan)"/>
+  <rect x="380" y="415" width="95" height="18" rx="4" fill="#070C08" stroke="#06B6D4" stroke-width="0.8"/>
+  <text x="386" y="428" fill="#06B6D4" font-size="9" font-weight="700" font-family="monospace">8. Complete JSON UI</text>
+
+  <!-- 9. Leaderboard Route -> CityRankings UI -->
+  <path d="M 480 610 Q 420 610 365 610" fill="none" stroke="#F59E0B" stroke-width="1.8" marker-end="url(#arrowAmber)"/>
+  <rect x="375" y="595" width="95" height="18" rx="4" fill="#070C08" stroke="#F59E0B" stroke-width="0.8"/>
+  <text x="380" y="608" fill="#F59E0B" font-size="9" font-weight="700" font-family="monospace">9. Aggregated Ranks</text>
+
+  <!-- Bottom Legend Footer -->
+  <g transform="translate(60, 880)">
+    <circle cx="10" cy="10" r="5" fill="#C6F135"/>
+    <text x="24" y="14" fill="#94A3B8" font-size="11">Frontend &amp; Autocomplete</text>
+
+    <circle cx="210" cy="10" r="5" fill="#06B6D4"/>
+    <text x="224" y="14" fill="#94A3B8" font-size="11">Next.js API Gateways</text>
+
+    <circle cx="400" cy="10" r="5" fill="#10B981"/>
+    <text x="414" y="14" fill="#94A3B8" font-size="11">TiDB Cloud Distributed MySQL</text>
+
+    <circle cx="630" cy="10" r="5" fill="#F59E0B"/>
+    <text x="644" y="14" fill="#94A3B8" font-size="11">Google Earth Engine (Sentinel-2 L2A)</text>
+
+    <text x="1100" y="14" fill="#64748B" font-size="11" font-family="monospace">Resolution: 1440 x 920 Vector Graphics</text>
+  </g>
+</svg>
