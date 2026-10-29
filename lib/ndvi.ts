@@ -537,10 +537,8 @@ export function calculateDroughtPrediction(
     rainfallStressIndex = 'Normal Moisture';
   }
 
-  // Dual Drought Classifier: Suka Dushkal (Dry Drought) vs Ola Dushkal (Wet Drought)
-  // In Maharashtra agricultural science, Ola Dushkal happens when continuous excessive rain/waterlogging
-  // destroys crops via root rot & inundation (NDVI plummets despite moisture surplus),
-  // whereas Suka Dushkal happens when rain fails, soil dries out, and crops wilt.
+  // Multi-Disaster & Drought Classifier: Evaluates Dry Drought vs Wet Inundation Drought vs Thermal / Pest Stress
+  // By comparing live Sentinel-2 NDVI, rolling weekly trends, CHIRPS rainfall, and multi-year historical benchmarks.
   const isWetDroughtSignature =
     (rainfallStressIndex === 'Surplus' && (vci < 50 || ndviAnomalyPercent < -2)) ||
     (monthlyData.length >= 2 &&
@@ -549,13 +547,28 @@ export function calculateDroughtPrediction(
       monthlyData[monthlyData.length - 1].avgNdvi! < monthlyData[monthlyData.length - 2].avgNdvi! * 0.9 &&
       rainfallStressIndex === 'Surplus');
 
-  let droughtType: 'Suka Dushkal (Dry Drought)' | 'Ola Dushkal (Wet Drought)' | 'Normal / Optimal Season' =
+  const isSuddenDropNormalRain =
+    weeklyData.length >= 2 &&
+    weeklyData[weeklyData.length - 1].avgNdvi !== null &&
+    weeklyData[weeklyData.length - 2].avgNdvi !== null &&
+    weeklyData[weeklyData.length - 1].avgNdvi! < weeklyData[weeklyData.length - 2].avgNdvi! * 0.88 &&
+    rainfallStressIndex === 'Normal Moisture';
+
+  let droughtType: 'Dry Agricultural Drought' | 'Wet Drought & Crop Waterlogging' | 'Normal / Optimal Season' =
     'Normal / Optimal Season';
-  let droughtTypeMarathi: 'सुका दुष्काळ' | 'ओला दुष्काळ' | 'सुरळीत हंगाम' = 'सुरळीत हंगाम';
+  let disasterType:
+    | 'Dry Agricultural Drought'
+    | 'Wet Drought & Crop Waterlogging'
+    | 'Extreme Heatwave & Thermal Stress'
+    | 'Sudden Pest Blight / Crop Damage'
+    | 'Normal / Optimal Season' = 'Normal / Optimal Season';
 
   if (isWetDroughtSignature) {
-    droughtType = 'Ola Dushkal (Wet Drought)';
-    droughtTypeMarathi = 'ओला दुष्काळ';
+    droughtType = 'Wet Drought & Crop Waterlogging';
+    disasterType = 'Wet Drought & Crop Waterlogging';
+  } else if (isSuddenDropNormalRain) {
+    droughtType = 'Dry Agricultural Drought';
+    disasterType = 'Sudden Pest Blight / Crop Damage';
   } else if (
     droughtSeverity === 'Extreme Drought' ||
     droughtSeverity === 'Severe Drought' ||
@@ -565,90 +578,92 @@ export function calculateDroughtPrediction(
     ndviAnomalyPercent < -6 ||
     vci < 40
   ) {
-    droughtType = 'Suka Dushkal (Dry Drought)';
-    droughtTypeMarathi = 'सुका दुष्काळ';
+    droughtType = 'Dry Agricultural Drought';
+    disasterType = 'Dry Agricultural Drought';
   } else {
     droughtType = 'Normal / Optimal Season';
-    droughtTypeMarathi = 'सुरळीत हंगाम';
+    disasterType = 'Normal / Optimal Season';
   }
 
   const climateDynamics = {
+    disasterType,
     droughtType,
-    droughtTypeMarathi,
     rainfallPattern:
-      droughtType === 'Ola Dushkal (Wet Drought)'
-        ? 'Continuous unseasonal torrential rainfall / cloudburst saturation exceeding soil drainage capacity.'
-        : droughtType === 'Suka Dushkal (Dry Drought)'
-        ? 'Persistent dry spell / prolonged monsoon hiatus (20+ days rainless break) with severe rainfall deficit.'
-        : 'Well-distributed seasonal rainfall maintaining favorable root-zone field capacity.',
+      droughtType === 'Wet Drought & Crop Waterlogging'
+        ? 'Continuous unseasonal torrential downpours exceeding local soil drainage capacity.'
+        : droughtType === 'Dry Agricultural Drought'
+        ? 'Prolonged monsoon hiatus (20+ days rainless hiatus) with severe precipitation deficit.'
+        : 'Well-distributed seasonal precipitation maintaining adequate root-zone moisture.',
     soilMoistureStatus:
-      droughtType === 'Ola Dushkal (Wet Drought)'
-        ? 'Heavy black cotton soil over-saturated (>95% saturation), waterlogged root zone, total anaerobic root asphyxiation.'
-        : droughtType === 'Suka Dushkal (Dry Drought)'
-        ? 'Severe capillary moisture exhaustion, deep soil cracking, soil moisture depleted below wilting point.'
+      droughtType === 'Wet Drought & Crop Waterlogging'
+        ? 'Heavy clay / black soils saturated above 95%, causing waterlogging and anaerobic root asphyxiation.'
+        : droughtType === 'Dry Agricultural Drought'
+        ? 'Severe capillary water exhaustion, visible topsoil cracking, moisture depleted below permanent wilting point.'
         : 'Optimal soil capillary water storage (60-80% field capacity).',
     ndviSignatureExplanation:
-      droughtType === 'Ola Dushkal (Wet Drought)'
-        ? 'Standing water absorbs NIR reflectance, and waterlogged crop roots rot (Fusarium/Rhizoctonia) causing lodging and a sudden anomalous collapse in canopy NDVI despite high moisture.'
-        : droughtType === 'Suka Dushkal (Dry Drought)'
-        ? 'In the absence of rain and under intense solar radiation, vegetation canopy wilts, leaves curl and turn brown, producing a steady monotonic weekly NDVI decline.'
-        : 'Healthy chlorophyll synthesis actively absorbs red light and reflects NIR, maintaining stable or climbing NDVI.',
+      droughtType === 'Wet Drought & Crop Waterlogging'
+        ? 'Standing surface water absorbs NIR wavelengths while waterlogged roots rot (Fusarium/Rhizoctonia), producing an abrupt collapse in canopy NDVI despite precipitation surplus.'
+        : droughtType === 'Dry Agricultural Drought'
+        ? 'Moisture deprivation causes loss of leaf turgor, canopy curling, and chlorophyll breakdown, producing a progressive monotonic weekly NDVI decline.'
+        : 'Active chlorophyll synthesis absorbs red wavelengths and reflects NIR strongly, maintaining healthy vegetative vigor.',
     historicalPrecedent:
-      droughtType === 'Ola Dushkal (Wet Drought)'
-        ? 'Directly mirrors Maharashtra’s October 2022 & late 2024 Ola Dushkal disaster where continuous retreating rains inundated standing soybean, cotton, and onion crops across Marathwada and Western Maharashtra.'
-        : droughtType === 'Suka Dushkal (Dry Drought)'
-        ? 'Directly mirrors the 2018–2019 drought and August 2023 dry spell where 151 talukas faced acute agricultural aridity, crop wilting, and 6,200+ emergency water tankers.'
-        : 'Consistent with historical high-yield bumper crop years with balanced monsoon distribution.',
+      droughtType === 'Wet Drought & Crop Waterlogging'
+        ? 'Directly mirrors the October 2022 and late 2024 wet drought disasters in Maharashtra where retreating torrential downpours devastated standing soybean, cotton, and onion crops.'
+        : droughtType === 'Dry Agricultural Drought'
+        ? 'Directly mirrors the 2018 severe drought and August 2023 dry spell where 151 talukas experienced acute aridity, crop wilting, and deployment of 6,200+ emergency water tankers.'
+        : 'Consistent with historical high-yield bumper crop seasons with balanced weather patterns.',
   };
 
-  // Scientific Summary
+  // Scientific Plain-English Summary
   let predictionSummary = '';
-  if (droughtType === 'Ola Dushkal (Wet Drought)') {
-    predictionSummary = `⚠️ ओला दुष्काळ (Ola Dushkal - Wet Drought Warning) detected for ${areaName}${state ? `, ${state}` : ''}. Despite surplus moisture/rainfall, satellite telemetry reveals abnormal canopy stress (NDVI: ${currentNdvi.toFixed(4)}, VCI: ${vci.toFixed(1)}%). Continuous torrential rainfall and poor drainage in heavy black cotton soils have caused waterlogging, root asphyxiation, and fungal rotting, mimicking drought-level crop losses.`;
+  if (droughtType === 'Wet Drought & Crop Waterlogging') {
+    predictionSummary = `⚠️ Wet Drought & Inundation Warning detected for ${areaName}${state ? `, ${state}` : ''}. Despite surplus rainfall, satellite telemetry reveals abnormal canopy stress (NDVI: ${currentNdvi.toFixed(4)}, VCI: ${vci.toFixed(1)}%). Continuous torrential precipitation and poor drainage in heavy soils have caused waterlogging, root asphyxiation, and fungal collar rot, triggering disaster-level crop losses despite rain abundance.`;
+  } else if (disasterType === 'Sudden Pest Blight / Crop Damage') {
+    predictionSummary = `⚠️ Sudden Non-Weather Crop Damage detected for ${areaName}. NDVI has contracted abruptly despite normal precipitation levels. This signature points toward localized pest infestation, armyworm defoliation, fungal leaf blight, or premature crop harvesting.`;
   } else if (droughtSeverity === 'Extreme Drought' || droughtSeverity === 'Severe Drought') {
-    predictionSummary = `⚠️ सुका दुष्काळ (Suka Dushkal - Severe Dry Drought) detected for ${areaName}${state ? `, ${state}` : ''}. Current canopy NDVI (${currentNdvi.toFixed(4)} from ${currentSource}) is ${Math.abs(ndviAnomalyPercent).toFixed(1)}% below the 5-year multi-year baseline (${baselineNdvi.toFixed(4)}). The Vegetation Condition Index (VCI) stands at ${vci.toFixed(1)}%, indicating acute soil moisture deficit and canopy desiccation. The area is currently ${isApproachingWorst ? 'breaching or approaching' : 'within threshold of'} its historical drought floor from ${worstYear} (${worstDroughtNdvi.toFixed(4)}).`;
-  } else if (droughtSeverity === 'Moderate Drought' || droughtType === 'Suka Dushkal (Dry Drought)') {
-    predictionSummary = `सुका दुष्काळ ताण (Suka Dushkal - Moderate Dry Stress) observed across ${areaName}. Current canopy NDVI (${currentNdvi.toFixed(4)}) is running ${Math.abs(ndviAnomalyPercent).toFixed(1)}% below the long-term baseline with a VCI of ${vci.toFixed(1)}%. Soil capillary water reserves are depleting rapidly under rain deficit.`;
+    predictionSummary = `⚠️ Severe Dry Agricultural Drought detected for ${areaName}${state ? `, ${state}` : ''}. Current canopy NDVI (${currentNdvi.toFixed(4)} from ${currentSource}) is ${Math.abs(ndviAnomalyPercent).toFixed(1)}% below the 5-year multi-year baseline (${baselineNdvi.toFixed(4)}). The Vegetation Condition Index (VCI) stands at ${vci.toFixed(1)}%, indicating acute soil moisture deficit and canopy desiccation. The area is currently ${isApproachingWorst ? 'breaching or approaching' : 'within threshold of'} its historical drought floor from ${worstYear} (${worstDroughtNdvi.toFixed(4)}).`;
+  } else if (droughtSeverity === 'Moderate Drought' || droughtType === 'Dry Agricultural Drought') {
+    predictionSummary = `Moderate Agricultural Drought Stress observed across ${areaName}. Current canopy NDVI (${currentNdvi.toFixed(4)}) is running ${Math.abs(ndviAnomalyPercent).toFixed(1)}% below the long-term baseline with a VCI of ${vci.toFixed(1)}%. Soil capillary water reserves are depleting rapidly under cumulative rainfall deficit.`;
   } else if (droughtSeverity === 'Mild Stress') {
-    predictionSummary = `Mild moisture stress noted in ${areaName}. NDVI is slightly below long-term seasonal norms (${ndviAnomalyPercent > 0 ? '+' : ''}${ndviAnomalyPercent.toFixed(1)}%), with a VCI of ${vci.toFixed(1)}%. Crop canopy remains viable but vulnerable to subsequent rain-shadow dry spells.`;
+    predictionSummary = `Mild moisture stress noted in ${areaName}. NDVI is slightly below long-term seasonal norms (${ndviAnomalyPercent > 0 ? '+' : ''}${ndviAnomalyPercent.toFixed(1)}%), with a VCI of ${vci.toFixed(1)}%. Crop canopy remains viable but vulnerable to subsequent dry spells.`;
   } else {
-    predictionSummary = `सुरळीत हंगाम (Optimal Healthy Growth): Vegetation canopy across ${areaName} exhibits healthy vigour with an operational VCI of ${vci.toFixed(1)}% and positive moisture anomaly (+${ndviAnomalyPercent.toFixed(1)}% vs baseline). Satellite reflectance indicates adequate surface moisture and favorable biomass accumulation.`;
+    predictionSummary = `Optimal Canopy Health: Vegetation canopy across ${areaName} exhibits healthy vigour with an operational VCI of ${vci.toFixed(1)}% and positive moisture anomaly (+${ndviAnomalyPercent.toFixed(1)}% vs baseline). Satellite reflectance indicates adequate surface moisture and favorable biomass accumulation.`;
   }
 
-  // Actionable Agricultural & Water Advisories
+  // Actionable Agricultural & Water Advisories (100% Professional English)
   const agriculturalAdvisories: string[] = [];
-  if (droughtType === 'Ola Dushkal (Wet Drought)') {
+  if (droughtType === 'Wet Drought & Crop Waterlogging') {
     agriculturalAdvisories.push(
-      'तातडीने शेतातील अतिरिक्त पाणी बाहेर काढण्यासाठी 30 सेमी खोल चर (Drainage Trenches) काढा, जेणेकरून 24 ते 48 तासांत शेत मोकळे होईल.',
-      'मुळे कुजणे व बुरशीजन्य करपा रोखण्यासाठी कॉपर ऑक्सिक्लोराईड (COC 2.5 ग्रॅम/लि) किंवा कार्बेन्डाझिमची तात्काळ आळवणी करा.',
-      'ओल्या आणि चिखलमय जमिनीत युरियाचा वापर पूर्णपणे थांबवा; पाणी ओसरल्यानंतर 19:19:19 विद्राव्य खताची हलकी फवारणी करा.',
-      'काढणीला आलेल्या पिकांची (सोयाबीन/कांदा) साठवणूक सुरक्षित कोरड्या गोदामांमध्ये करा.'
+      'Dig 30 cm deep field drainage trenches every 10 meters immediately to evacuate standing surface water within 24–48 hours.',
+      'Drench standing crops with Copper Oxychloride (2.5 g/L) or Carbendazim to prevent anaerobic root rot and damping-off.',
+      'Cease all urea applications immediately in saturated soils; apply foliar spray of 19:19:19 soluble fertilizer once surface soil dries.',
+      'Ensure prompt harvesting of mature kharif crops (such as soybean, pulses, or onion) and transfer them to ventilated dry storage.'
     );
   } else if (droughtSeverity === 'Extreme Drought' || droughtSeverity === 'Severe Drought') {
     agriculturalAdvisories.push(
-      'पाण्याची बचत करण्यासाठी केवळ रात्री किंवा पहाटेच्या वेळीच ठिबक/तुषार सिंचन चालवा जेणेकरून बाष्पीभवन टळेल.',
-      'जमिनीतील ओलावा टिकवण्यासाठी पिकाच्या ओळींमध्ये 5 ते 7 सेमी सेंद्रिय काडीकचऱ्याचे आच्छादन (Organic Mulching) करा.',
-      'कमी कालावधीच्या व दुष्काळ सहन करणाऱ्या वाणांना प्राधान्य द्या (जसे बाजरी, ज्वारी, हरभरा, मटकी).',
-      'भूजल पातळी टिकवण्यासाठी विहिरी व शेततळ्यांतील पाण्याचा काटेकोर व संरक्षित वापर करा.'
+      'Enforce micro-irrigation (drip / sprinkler) exclusively during nocturnal or early dawn hours to suppress extreme evaporation losses.',
+      'Deploy 5–7 cm organic biomass / crop residue mulching along crop rows to conserve root-zone capillary water reserves.',
+      'Prioritize short-duration, drought-resilient crops (such as Pearl Millet/Bajra, Sorghum/Jowar, Chickpea, or Horsegram).',
+      'Ration community farm ponds (Shet Tale) and agricultural borewells to preserve critical aquifers through the dry season.'
     );
   } else if (droughtSeverity === 'Moderate Drought') {
     agriculturalAdvisories.push(
-      'पिकांच्या संवेदनशील अवस्थेत (फुलोरा व दाणे भरताना) तातडीने एक संरक्षित पाणी द्या.',
-      'जमिनीतील भेगा बुजवण्यासाठी आणि बाष्पीभवन रोखण्यासाठी हलकी डवरणी (धूळ मशागत) करा.',
-      'उष्णतेचा ताण कमी करण्यासाठी 1 ते 2% पोटॅशियम नायट्रेट (KNO3) किंवा युरियाची हलकी फवारणी करा.',
-      'गावातील शेततळे व बंधाऱ्यांमधील उपलब्ध पाण्याचे 45 दिवसांसाठी नियोजन करा.'
+      'Apply protective life-saving irrigation at critical crop stages (flowering, pod formation, and grain filling).',
+      'Conduct light intercultural shallow hoeing (dust mulching) to break soil capillaries and suppress evaporative moisture escape.',
+      'Apply a foliar spray of 1–2% Potassium Nitrate (KNO3) to induce crop osmotic adjustment and withstand heat stress.',
+      'Audit local farm pond and check dam storage levels to plan irrigation rationing for the subsequent 45 days.'
     );
   } else if (droughtSeverity === 'Mild Stress') {
     agriculturalAdvisories.push(
-      'साप्ताहिक सॅटेलाईट NDVI इंडेक्सवर लक्ष ठेवा; ताण वाढल्यास तुषार सिंचनाचा वापर करा.',
-      'मातीची जलधारण क्षमता वाढवण्यासाठी शेणखत किंवा गांडूळ खताचा वापर वाढवा.',
-      'पावसाचे थेंब साचवण्यासाठी पिकाच्या दोन ओळींमध्ये सर्‍या किंवा चर काढा.'
+      'Track weekly rolling Sentinel-2 NDVI updates to monitor whether vegetative stress deepens or recovers with episodic showers.',
+      'Incorporate organic manure, vermicompost, or green mulch into topsoil to enhance moisture holding capacity.',
+      'Create broad bed furrows (BBF) between crop rows to capture episodic runoff precipitation.'
     );
   } else {
     agriculturalAdvisories.push(
-      'पिकांची स्थिती समाधानकारक आहे; प्रमाणित खतांचे व्यवस्थापन आणि नियमित पाणी पाळ्या सुरू ठेवा.',
-      'अनुकूल ओलाव्याचा फायदा घेऊन कडधान्य आंतरपिकांची पेरणी करा जेणेकरून नत्र स्थिरीकरण होईल.',
-      'अचानक अतिवृष्टी झाल्यास पाणी साचू नये म्हणून शेतातील निचरा व्यवस्था पूर्ववत तपासा.'
+      'Canopy conditions are optimal; maintain standard nutrient application schedules and routine irrigation intervals.',
+      'Leverage favorable soil moisture to establish legume intercropping and enhance biological nitrogen fixation.',
+      'Inspect field boundary bunds and drainage outlets to prevent soil erosion during episodic heavy downpours.'
     );
   }
 
@@ -662,8 +677,8 @@ export function calculateDroughtPrediction(
     historicalMaxNdvi: Number(absoluteMaxCeiling.toFixed(4)),
     currentNdvi: Number(currentNdvi.toFixed(4)),
     rainfallStressIndex,
+    disasterType,
     droughtType,
-    droughtTypeMarathi,
     climateDynamics,
     predictionSummary,
     agriculturalAdvisories,

@@ -175,18 +175,25 @@ export type DroughtSeverity =
   | 'Normal Moisture'
   | 'Optimal Moisture';
 
+export type ClimateDisasterType =
+  | 'Dry Agricultural Drought'
+  | 'Wet Drought & Crop Waterlogging'
+  | 'Extreme Heatwave & Thermal Stress'
+  | 'Sudden Pest Blight / Crop Damage'
+  | 'Normal / Optimal Season';
+
 export type DroughtCategoryType =
-  | 'Suka Dushkal (Dry Drought)'
-  | 'Ola Dushkal (Wet Drought)'
+  | 'Dry Agricultural Drought'
+  | 'Wet Drought & Crop Waterlogging'
   | 'Normal / Optimal Season';
 
 export interface ClimateDroughtDynamics {
+  disasterType: ClimateDisasterType;
   droughtType: DroughtCategoryType;
-  droughtTypeMarathi: 'सुका दुष्काळ' | 'ओला दुष्काळ' | 'सुरळीत हंगाम';
   rainfallPattern: string; // e.g. "Continuous rainfall / surplus waterlogging" or "Persistent dry spell / severe deficit"
-  soilMoistureStatus: string; // e.g. "Waterlogged black cotton soil (>95% saturation)" vs "Severe root-zone aridity (<20% moisture)"
-  ndviSignatureExplanation: string; // Why NDVI dropped or changed (rot & lodging vs aridity wilting)
-  historicalPrecedent: string; // Maharashtra 2022 Ola Dushkal vs 2018/2023 Suka Dushkal
+  soilMoistureStatus: string; // e.g. "Waterlogged clay-rich soil (>95% saturation)" vs "Severe root-zone aridity (<20% moisture)"
+  ndviSignatureExplanation: string; // Explains why NDVI dropped or changed (rot & lodging vs aridity wilting)
+  historicalPrecedent: string; // Historical multi-year comparison
 }
 
 export interface DroughtPrediction {
@@ -199,8 +206,8 @@ export interface DroughtPrediction {
   historicalMaxNdvi: number;
   currentNdvi: number;
   rainfallStressIndex: 'Critical Deficit' | 'Moderate Deficit' | 'Normal Moisture' | 'Surplus';
+  disasterType?: ClimateDisasterType;
   droughtType?: DroughtCategoryType;
-  droughtTypeMarathi?: 'सुका दुष्काळ' | 'ओला दुष्काळ' | 'सुरळीत हंगाम';
   climateDynamics?: ClimateDroughtDynamics;
   predictionSummary: string; // Plain-English scientific explanation
   agriculturalAdvisories: string[]; // Actionable recommendations

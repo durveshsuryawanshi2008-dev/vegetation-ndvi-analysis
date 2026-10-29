@@ -5,7 +5,7 @@ import { NdviAnalysisResponse } from '@/lib/types';
 import { MetricsGrid } from './MetricsGrid';
 import { DroughtPredictor } from './DroughtPredictor';
 import { DroughtDropAlert } from './DroughtDropAlert';
-import { DushkalClassifier } from './DushkalClassifier';
+import { ClimateDisasterPredictor } from './ClimateDisasterPredictor';
 import { NdviChart } from './NdviChart';
 import { YearlyTable } from './YearlyTable';
 import { VegetationInterpretation } from './VegetationInterpretation';
@@ -124,8 +124,8 @@ export function AnalysisDashboard({ data, onRefresh, isRefreshing }: AnalysisDas
       {/* 1. Metrics Grid (Territory, Area Extent, Latest NDVI, Status) */}
       <MetricsGrid data={data} />
 
-      {/* 2. Maharashtra Climate & Drought Nature Engine: Ola Dushkal (Wet) vs Suka Dushkal (Dry) */}
-      <DushkalClassifier
+      {/* 2. Live Climate Disaster & Drought Early Warning Engine: Wet vs. Dry Events */}
+      <ClimateDisasterPredictor
         prediction={data.droughtPrediction}
         areaName={data.area}
         state={cleanState}

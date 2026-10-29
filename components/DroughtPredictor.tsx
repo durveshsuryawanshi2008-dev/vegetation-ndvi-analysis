@@ -133,14 +133,13 @@ export function DroughtPredictor({
             {droughtPrediction.droughtType && (
               <span
                 className={`text-[10px] font-mono uppercase px-2.5 py-0.5 rounded-full border font-bold ${
-                  droughtPrediction.droughtType === 'Ola Dushkal (Wet Drought)'
+                  droughtPrediction.droughtType === 'Wet Drought & Crop Waterlogging'
                     ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
-                    : droughtPrediction.droughtType === 'Suka Dushkal (Dry Drought)'
+                    : droughtPrediction.droughtType === 'Dry Agricultural Drought'
                     ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
                     : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
                 }`}
               >
-                {droughtPrediction.droughtTypeMarathi ? `${droughtPrediction.droughtTypeMarathi} • ` : ''}
                 {droughtPrediction.droughtType}
               </span>
             )}

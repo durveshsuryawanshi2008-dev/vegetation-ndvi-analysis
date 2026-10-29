@@ -20,28 +20,29 @@ import {
   Layers,
   ThermometerSun,
   History,
+  Bug,
 } from 'lucide-react';
 import { DroughtPrediction } from '@/lib/types';
 
-interface DushkalClassifierProps {
+interface ClimateDisasterPredictorProps {
   prediction?: DroughtPrediction;
   areaName: string;
   state?: string;
   onDrilldownWeekly?: () => void;
 }
 
-export function DushkalClassifier({
+export function ClimateDisasterPredictor({
   prediction,
   areaName,
   state,
   onDrilldownWeekly,
-}: DushkalClassifierProps) {
-  const [activeTab, setActiveTab] = useState<'live' | 'ola' | 'suka' | 'climate_dynamics'>('live');
+}: ClimateDisasterPredictorProps) {
+  const [activeTab, setActiveTab] = useState<'live' | 'wet_drought' | 'dry_drought' | 'heatwave' | 'climate_physics'>('live');
 
-  const liveType = prediction?.droughtType || 'Normal / Optimal Season';
-  const liveMarathi = prediction?.droughtTypeMarathi || 'सुरळीत हंगाम';
-  const isLiveOla = liveType === 'Ola Dushkal (Wet Drought)';
-  const isLiveSuka = liveType === 'Suka Dushkal (Dry Drought)';
+  const liveDisaster = prediction?.disasterType || prediction?.droughtType || 'Normal / Optimal Season';
+  const isWetDrought = liveDisaster === 'Wet Drought & Crop Waterlogging';
+  const isDryDrought = liveDisaster === 'Dry Agricultural Drought';
+  const isPestDamage = liveDisaster === 'Sudden Pest Blight / Crop Damage';
 
   return (
     <div className="glass-panel rounded-2xl p-5 sm:p-6 border border-white/10 space-y-6 shadow-[0_0_30px_rgba(0,0,0,0.35)] relative overflow-hidden">
@@ -54,44 +55,61 @@ export function DushkalClassifier({
           <div className="flex flex-wrap items-center gap-2 mb-1.5">
             <span className="text-[10px] font-mono uppercase px-2.5 py-0.5 rounded-full bg-eco-950/50 border border-eco-500/40 text-eco-neon flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-eco-neon animate-pulse" />
-              Maharashtra Climate Engine
+              Live Climate &amp; Natural Disaster Engine
             </span>
             <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-white/[0.06] text-zinc-300 border border-white/10">
-              सुका दुष्काळ vs ओला दुष्काळ वर्गीकरण
+              Multi-Year Satellite Telemetry Comparison
             </span>
           </div>
 
           <h3 className="text-xl sm:text-2xl font-bold font-display text-white tracking-tight flex items-center gap-2">
-            <span>Drought Nature: Ola Dushkal (Wet) vs Suka Dushkal (Dry)</span>
+            <span>Climate Disaster Forecaster: Wet vs. Dry Drought &amp; Extreme Events</span>
           </h3>
           <p className="text-xs text-zinc-300 font-mono mt-0.5">
-            Differentiates crop devastation from <strong className="text-cyan-300">Continuous Excess Rainfall (ओला दुष्काळ)</strong> vs{' '}
-            <strong className="text-amber-300">Prolonged Monsoon Drought (सुका दुष्काळ)</strong> for {areaName}.
+            Compares live satellite Sentinel-2 NDVI, CHIRPS rainfall, and multi-year baselines to detect{' '}
+            <strong className="text-cyan-300">Wet Drought (Excess Rain Rot)</strong> vs.{' '}
+            <strong className="text-amber-300">Dry Drought (Aridity Stress)</strong> for {areaName}.
           </p>
         </div>
 
         {/* Live Satellite Classification Badge */}
         <div className="shrink-0 flex items-center gap-3 bg-black/40 border border-white/10 rounded-xl p-3 px-4 font-mono">
           <div className="text-right">
-            <span className="text-[10px] text-zinc-400 block uppercase">Current Satellite Diagnosis</span>
+            <span className="text-[10px] text-zinc-400 block uppercase">Current Telemetry Diagnosis</span>
             <span
-              className={`text-base sm:text-lg font-black ${
-                isLiveOla ? 'text-cyan-400' : isLiveSuka ? 'text-rose-400' : 'text-emerald-400'
+              className={`text-sm sm:text-base font-black ${
+                isWetDrought
+                  ? 'text-cyan-400'
+                  : isDryDrought
+                  ? 'text-rose-400'
+                  : isPestDamage
+                  ? 'text-yellow-400'
+                  : 'text-emerald-400'
               }`}
             >
-              {liveMarathi} ({isLiveOla ? 'Wet Drought' : isLiveSuka ? 'Dry Drought' : 'Normal'})
+              {liveDisaster}
             </span>
           </div>
           <div
             className={`w-11 h-11 rounded-xl flex items-center justify-center font-bold text-lg border ${
-              isLiveOla
+              isWetDrought
                 ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40'
-                : isLiveSuka
+                : isDryDrought
                 ? 'bg-rose-500/20 text-rose-400 border-rose-500/40'
+                : isPestDamage
+                ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40'
                 : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
             }`}
           >
-            {isLiveOla ? <CloudRain className="w-6 h-6" /> : isLiveSuka ? <Sun className="w-6 h-6" /> : <Sprout className="w-6 h-6" />}
+            {isWetDrought ? (
+              <CloudRain className="w-6 h-6" />
+            ) : isDryDrought ? (
+              <Sun className="w-6 h-6" />
+            ) : isPestDamage ? (
+              <Bug className="w-6 h-6" />
+            ) : (
+              <Sprout className="w-6 h-6" />
+            )}
           </div>
         </div>
       </div>
@@ -113,41 +131,54 @@ export function DushkalClassifier({
 
         <button
           type="button"
-          onClick={() => setActiveTab('ola')}
+          onClick={() => setActiveTab('wet_drought')}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono transition-all ${
-            activeTab === 'ola'
+            activeTab === 'wet_drought'
               ? 'bg-cyan-500 text-black font-bold shadow-md shadow-cyan-500/20'
               : 'bg-white/[0.04] text-zinc-300 hover:bg-white/[0.08] hover:text-white border border-white/10'
           }`}
         >
           <CloudRain className="w-3.5 h-3.5" />
-          <span>🌧️ ओला दुष्काळ (Wet Drought Scenario)</span>
+          <span>🌧️ Wet Drought &amp; Inundation Scenario</span>
         </button>
 
         <button
           type="button"
-          onClick={() => setActiveTab('suka')}
+          onClick={() => setActiveTab('dry_drought')}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono transition-all ${
-            activeTab === 'suka'
+            activeTab === 'dry_drought'
               ? 'bg-amber-500 text-black font-bold shadow-md shadow-amber-500/20'
               : 'bg-white/[0.04] text-zinc-300 hover:bg-white/[0.08] hover:text-white border border-white/10'
           }`}
         >
           <Sun className="w-3.5 h-3.5" />
-          <span>☀️ सुका दुष्काळ (Dry Drought Scenario)</span>
+          <span>☀️ Dry Agricultural Drought Scenario</span>
         </button>
 
         <button
           type="button"
-          onClick={() => setActiveTab('climate_dynamics')}
+          onClick={() => setActiveTab('heatwave')}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono transition-all ${
-            activeTab === 'climate_dynamics'
+            activeTab === 'heatwave'
+              ? 'bg-rose-500 text-white font-bold shadow-md shadow-rose-500/20'
+              : 'bg-white/[0.04] text-zinc-300 hover:bg-white/[0.08] hover:text-white border border-white/10'
+          }`}
+        >
+          <Flame className="w-3.5 h-3.5" />
+          <span>🔥 Heatwave &amp; Thermal Stress</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('climate_physics')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono transition-all ${
+            activeTab === 'climate_physics'
               ? 'bg-purple-500 text-white font-bold shadow-md shadow-purple-500/20'
               : 'bg-white/[0.04] text-zinc-300 hover:bg-white/[0.08] hover:text-white border border-white/10'
           }`}
         >
           <Layers className="w-3.5 h-3.5" />
-          <span>📊 कसा बदलतो NDVI? (NDVI Climate Dynamics)</span>
+          <span>📊 How Rain Dynamically Alters NDVI</span>
         </button>
       </div>
 
@@ -166,7 +197,7 @@ export function DushkalClassifier({
               </div>
               <p className="text-[11px] text-zinc-400 leading-snug">
                 {prediction?.climateDynamics?.rainfallPattern ||
-                  'Monsoon rainfall monitored via UCSB-CHG CHIRPS & Sentinel-2 composite telemetry.'}
+                  'Monitored via UCSB-CHG CHIRPS daily precipitation and multi-year normal baselines.'}
               </p>
             </div>
 
@@ -174,14 +205,18 @@ export function DushkalClassifier({
             <div className="p-3.5 rounded-xl bg-black/40 border border-white/10 space-y-1">
               <span className="text-[10px] text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
                 <Waves className="w-3.5 h-3.5 text-eco-neon" />
-                Soil Saturation / Root Aeration
+                Soil Saturation &amp; Root Aeration
               </span>
               <div className="text-sm font-bold text-white">
-                {isLiveOla ? 'Waterlogged / Anaerobic' : isLiveSuka ? 'Severe Moisture Deficit' : 'Optimal Field Capacity'}
+                {isWetDrought
+                  ? 'Waterlogged / Anaerobic Root Zone'
+                  : isDryDrought
+                  ? 'Severe Moisture Deficit / Cracking'
+                  : 'Balanced Field Capacity'}
               </div>
               <p className="text-[11px] text-zinc-400 leading-snug">
                 {prediction?.climateDynamics?.soilMoistureStatus ||
-                  'Black cotton soil holds capillary water without root asphyxiation.'}
+                  'Soil maintains healthy capillary moisture without root asphyxiation.'}
               </p>
             </div>
 
@@ -196,7 +231,7 @@ export function DushkalClassifier({
               </div>
               <p className="text-[11px] text-zinc-400 leading-snug">
                 {prediction?.climateDynamics?.ndviSignatureExplanation ||
-                  'Canopy reflectance demonstrates standard chlorophyll absorption and near-infrared scattering.'}
+                  'Active chlorophyll absorption and near-infrared reflectance indicate stable vegetative vigor.'}
               </p>
             </div>
           </div>
@@ -206,11 +241,11 @@ export function DushkalClassifier({
             <div className="space-y-1">
               <span className="text-amber-400 font-mono font-bold uppercase tracking-wider flex items-center gap-1.5">
                 <History className="w-4 h-4 text-amber-400" />
-                Maharashtra Climate Memory Comparison
+                Multi-Year Historical Comparison
               </span>
               <p className="text-zinc-300">
                 {prediction?.climateDynamics?.historicalPrecedent ||
-                  'Compares current season against Maharashtra 2022 Ola Dushkal (wet drought) and 2018/2023 Suka Dushkal (dry drought).'}
+                  'Comparing current observation against multi-year disaster baselines including 2018 drought and 2022 wet rot events.'}
               </p>
             </div>
 
@@ -228,157 +263,198 @@ export function DushkalClassifier({
         </div>
       )}
 
-      {/* ── TAB 2: OLA DUSHKAL (WET DROUGHT) DEEP DIVE ─────────────────── */}
-      {activeTab === 'ola' && (
+      {/* ── TAB 2: WET DROUGHT DEEP DIVE ──────────────────────────────── */}
+      {activeTab === 'wet_drought' && (
         <div className="space-y-4 rounded-xl bg-cyan-950/20 border border-cyan-500/30 p-4">
           <div className="flex items-center gap-2 text-cyan-300 font-mono text-sm font-bold">
             <CloudRain className="w-5 h-5 text-cyan-400" />
-            <span>ओला दुष्काळ (Ola Dushkal / Excess Rain &amp; Waterlogging Disaster) Explained</span>
+            <span>Wet Drought (Continuous Excess Rain &amp; Crop Waterlogging Disaster) Explained</span>
           </div>
 
           <p className="text-xs text-zinc-300 leading-relaxed font-sans">
-            In Maharashtra, <strong>Ola Dushkal</strong> occurs when continuous unseasonal torrential rains (such as retreating monsoon cloudbursts)
-            flood agricultural fields. In heavy black cotton soil (काळी माती), water cannot percolate rapidly, leading to complete waterlogging.
-            Even though rain is abundant, <strong>crops rot, roots choke from lack of oxygen (anaerobic asphyxiation), and plants collapse</strong>.
-            On satellite imagery, standing water absorbs NIR radiation, causing a <strong>sudden anomalous NDVI drop</strong> mimicking drought loss!
+            A <strong>Wet Drought</strong> occurs when continuous unseasonal torrential downpours flood agricultural fields.
+            In clay-heavy soils (such as black cotton soils), water cannot percolate rapidly, leading to prolonged waterlogging.
+            Even though precipitation is in large surplus, <strong>crop roots choke from lack of oxygen (anaerobic asphyxiation), fungal collar rot sets in, and standing crops lodge flat into mud</strong>.
+            On satellite imagery, surface standing water absorbs Near-Infrared (NIR) radiation, causing an <strong>anomalous, abrupt collapse in NDVI</strong> that mimics extreme drought damage.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
             <div className="rounded-lg bg-black/40 border border-cyan-500/20 p-3 space-y-1.5 text-xs">
               <span className="font-mono text-cyan-400 font-bold flex items-center gap-1.5">
                 <AlertTriangle className="w-3.5 h-3.5" />
-                What Happened Last Year in Maharashtra (2022 / 2024)?
+                Historical Benchmark (October 2022 &amp; 2024 Inundation)
               </span>
               <p className="text-zinc-300 leading-relaxed">
-                In October 2022 &amp; late 2024, continuous rainfall in Marathwada (Latur, Beed, Nanded, Ahilyanagar) caused standing soybean pods to sprout and rot on the stalk.
-                Cotton bolls turned black and dropped. NDVI dropped precipitously by <strong>18% to 26%</strong> across 2 weeks despite continuous rainfall!
+                During retreating monsoon downpours, continuous heavy rains caused mature soybean pods to sprout on the stalk and cotton bolls to rot.
+                Satellite NDVI dropped abruptly by <strong>18% to 26%</strong> across 14 days despite continuous surplus precipitation.
               </p>
             </div>
 
             <div className="rounded-lg bg-black/40 border border-cyan-500/20 p-3 space-y-1.5 text-xs">
               <span className="font-mono text-cyan-400 font-bold flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5 text-eco-neon" />
-                ओला दुष्काळ उपाययोजना (Wet Drought Countermeasures)
+                Wet Drought Actionable Countermeasures
               </span>
               <ul className="text-zinc-300 space-y-1 list-disc list-inside">
-                <li>शेतातून साचलेले पाणी त्वरित बाहेर काढण्यासाठी 30 सेमी खोल चर (Drainage Trenches) काढा.</li>
-                <li>मुळे कुजणे रोखण्यासाठी कॉपर ऑक्सिक्लोराईड (2.5g/L) किंवा कार्बेन्डाझिमची आळवणी करा.</li>
-                <li>ओल्या जमिनीत युरियाचा वापर पूर्णपणे थांबवा; पाणी ओसरल्यावर 19:19:19 ची फवारणी करा.</li>
+                <li>Dig 30 cm deep drainage trenches every 10 meters immediately to evacuate standing water within 24–48 hours.</li>
+                <li>Drench root zones with Copper Oxychloride (2.5 g/L) or Carbendazim against fungal root rot.</li>
+                <li>Halt urea fertilizer applications in waterlogged soils; spray foliar 19:19:19 once surface drains.</li>
               </ul>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── TAB 3: SUKA DUSHKAL (DRY DROUGHT) DEEP DIVE ─────────────────── */}
-      {activeTab === 'suka' && (
+      {/* ── TAB 3: DRY DROUGHT DEEP DIVE ──────────────────────────────── */}
+      {activeTab === 'dry_drought' && (
         <div className="space-y-4 rounded-xl bg-amber-950/20 border border-amber-500/30 p-4">
           <div className="flex items-center gap-2 text-amber-300 font-mono text-sm font-bold">
             <Sun className="w-5 h-5 text-amber-400" />
-            <span>सुका दुष्काळ (Suka Dushkal / Meteorological &amp; Agricultural Drought) Explained</span>
+            <span>Dry Agricultural Drought (Meteorological &amp; Soil Moisture Deficit) Explained</span>
           </div>
 
           <p className="text-xs text-zinc-300 leading-relaxed font-sans">
-            <strong>Suka Dushkal</strong> is the classic aridity drought triggered by prolonged dry spells (पावसाचा खंड), rain deficit exceeding -30% to -60%,
-            and scorching land surface temperatures. Soil moisture drops below the permanent wilting point, crops wilt during midday, and chlorophyll degrades.
-            On satellite imagery, this appears as a <strong>steady, monotonic week-over-week NDVI decline</strong> across 4 to 12 consecutive weeks.
+            <strong>Dry Agricultural Drought</strong> is triggered by prolonged monsoon dry breaks (20+ days without rain), cumulative rainfall deficits exceeding -30% to -60%,
+            and intense solar evapotranspiration. Soil moisture drops below the permanent wilting point, crop foliage loses cellular turgor, and chlorophyll disintegrates.
+            On satellite telemetry, this appears as a <strong>steady, monotonic week-over-week NDVI decline</strong> across 4 to 12 consecutive weeks.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
             <div className="rounded-lg bg-black/40 border border-amber-500/20 p-3 space-y-1.5 text-xs">
               <span className="font-mono text-amber-400 font-bold flex items-center gap-1.5">
                 <AlertTriangle className="w-3.5 h-3.5" />
-                Historical Benchmark (2018 &amp; August 2023)
+                Historical Benchmark (2018 Drought &amp; August 2023 Hiatus)
               </span>
               <p className="text-zinc-300 leading-relaxed">
-                In August 2023, a 22-day dry spell led to an 80% monsoon hiatus across Maharashtra. In 2018, 151 talukas faced extreme drought,
-                with NDVI falling below 0.28, causing 42% kharif pulse collapse and requiring 6,200+ water tankers across Ahilyanagar and Solapur.
+                In August 2023, a 22-day rain hiatus broke a 122-year record with an 80% monsoon hiatus. In 2018, severe drought across 151 talukas saw NDVI fall below 0.28,
+                collapsing 42% of kharif pulse yields and necessitating 6,200+ emergency water tankers.
               </p>
             </div>
 
             <div className="rounded-lg bg-black/40 border border-amber-500/20 p-3 space-y-1.5 text-xs">
               <span className="font-mono text-amber-400 font-bold flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5 text-eco-neon" />
-                सुका दुष्काळ उपाययोजना (Dry Drought Countermeasures)
+                Dry Drought Actionable Countermeasures
               </span>
               <ul className="text-zinc-300 space-y-1 list-disc list-inside">
-                <li>बाष्पीभवन टाळण्यासाठी केवळ रात्रीच्या किंवा पहाटेच्या वेळीच ठिबक/तुषार सिंचन वापरा.</li>
-                <li>पिकाच्या ओळींमध्ये 5 ते 7 सेमी सेंद्रिय काडीकचऱ्याचे आच्छादन (Mulching) करा.</li>
-                <li>उष्णतेचा ताण कमी करण्यासाठी 1% पोटॅशियम नायट्रेट (KNO₃) किंवा युरियाची हलकी फवारणी करा.</li>
+                <li>Enforce nocturnal micro-irrigation (drip / sprinkler) between 8 PM and 6 AM to stop daytime evaporation.</li>
+                <li>Apply 5–7 cm organic biomass / crop residue mulching along crop rows to conserve root capillary reserves.</li>
+                <li>Deploy a 1–2% Potassium Nitrate (KNO3) foliar spray to induce crop osmotic resistance under heat.</li>
               </ul>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── TAB 4: HOW CLIMATE & CONTINUOUS RAIN CHANGES DAILY/WEEKLY NDVI ─ */}
-      {activeTab === 'climate_dynamics' && (
-        <div className="space-y-4 rounded-xl bg-purple-950/20 border border-purple-500/30 p-4">
-          <div className="flex items-center gap-2 text-purple-300 font-mono text-sm font-bold">
-            <Layers className="w-5 h-5 text-purple-400" />
-            <span>कसा बदलतो NDVI? (How Climate &amp; Rain Dynamically Modifies Satellite NDVI)</span>
+      {/* ── TAB 4: HEATWAVE & THERMAL STRESS ───────────────────────────── */}
+      {activeTab === 'heatwave' && (
+        <div className="space-y-4 rounded-xl bg-rose-950/20 border border-rose-500/30 p-4">
+          <div className="flex items-center gap-2 text-rose-300 font-mono text-sm font-bold">
+            <Flame className="w-5 h-5 text-rose-400" />
+            <span>Extreme Heatwave &amp; Thermal Canopy Stress Explained</span>
           </div>
 
           <p className="text-xs text-zinc-300 leading-relaxed font-sans">
-            NDVI measures active chlorophyll reflectance via formula: <code className="text-eco-neon font-mono text-[11px]">(NIR - Red) / (NIR + Red)</code>.
-            Here is the step-by-step scientific breakdown of why NDVI drops during <strong>Continuous Rain (Ola Dushkal)</strong> versus <strong>Dry Spell (Suka Dushkal)</strong>:
+            Extreme heatwave episodes occur when Land Surface Temperatures (LST) surge +2.5°C to +5.0°C above historical norms.
+            Plants close their stomata to prevent dehydration, shutting down photosynthesis and leading to cellular thermal scorching.
+            Satellite sensors observe a sudden loss in photosynthetic efficiency and thermal reflectance spikes.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+            <div className="rounded-lg bg-black/40 border border-rose-500/20 p-3 space-y-1.5 text-xs">
+              <span className="font-mono text-rose-400 font-bold flex items-center gap-1.5">
+                <ThermometerSun className="w-3.5 h-3.5" />
+                Satellite Telemetry Signals
+              </span>
+              <p className="text-zinc-300 leading-relaxed">
+                Elevated MODIS Land Surface Temperature paired with sharp downward NDVI slope within 7–10 days.
+                Even if soil moisture was previously adequate, intense thermal radiation scorches top foliage.
+              </p>
+            </div>
+
+            <div className="rounded-lg bg-black/40 border border-rose-500/20 p-3 space-y-1.5 text-xs">
+              <span className="font-mono text-rose-400 font-bold flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-eco-neon" />
+                Thermal Protection Advisories
+              </span>
+              <ul className="text-zinc-300 space-y-1 list-disc list-inside">
+                <li>Deploy micro-sprinklers during peak afternoon hours (12 PM – 3 PM) for evaporative canopy cooling.</li>
+                <li>Apply Kaolin clay spray (5%) to reflect excess solar radiation without harming leaf respiration.</li>
+                <li>Erect shade netting for high-value horticultural and vegetable plantations.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB 5: HOW RAIN DYNAMICALLY ALTERS NDVI (STEP-BY-STEP PHYSICS) ─ */}
+      {activeTab === 'climate_physics' && (
+        <div className="space-y-4 rounded-xl bg-purple-950/20 border border-purple-500/30 p-4">
+          <div className="flex items-center gap-2 text-purple-300 font-mono text-sm font-bold">
+            <Layers className="w-5 h-5 text-purple-400" />
+            <span>How Rainfall &amp; Climate Dynamically Alter Satellite NDVI</span>
+          </div>
+
+          <p className="text-xs text-zinc-300 leading-relaxed font-sans">
+            NDVI measures active chlorophyll reflectance using the formula: <code className="text-eco-neon font-mono text-[11px]">(NIR - Red) / (NIR + Red)</code>.
+            Here is the step-by-step physical breakdown of why NDVI reacts differently during <strong>Continuous Rainfall (Wet Drought)</strong> versus a <strong>Rain Hiatus (Dry Drought)</strong>:
           </p>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-2">
-            {/* Scenario A */}
+            {/* Scenario A: Continuous Rain */}
             <div className="rounded-xl bg-black/50 border border-cyan-500/30 p-4 space-y-2.5">
               <div className="flex items-center justify-between text-xs font-mono font-bold text-cyan-300 border-b border-cyan-500/20 pb-2">
                 <span className="flex items-center gap-1.5">
                   <CloudRain className="w-4 h-4 text-cyan-400" />
-                  केस १: सतत पाऊस पडल्यास (Continuous Heavy Rain)
+                  Scenario 1: Continuous Heavy Rainfall
                 </span>
-                <span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 text-[10px]">ओला दुष्काळ</span>
+                <span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 text-[10px]">Wet Inundation</span>
               </div>
 
               <div className="space-y-2 text-xs font-mono">
                 <div className="flex items-start gap-2">
-                  <span className="text-cyan-400 shrink-0 font-bold">दिवस १-३:</span>
-                  <span className="text-zinc-300">काळी माती जलसंपृक्त होते (Saturation reaches 100%).</span>
+                  <span className="text-cyan-400 shrink-0 font-bold">Days 1–3:</span>
+                  <span className="text-zinc-300">Soil reaches 100% water saturation and field capacity.</span>
                 </div>
                 <div className="flex items-start gap-2">
-                  <span className="text-cyan-400 shrink-0 font-bold">दिवस ४-१०:</span>
-                  <span className="text-zinc-300">शेतात पाणी साचून राहते; मुळांना ऑक्सिजन मिळणे बंद होते (Anaerobic root zone).</span>
+                  <span className="text-cyan-400 shrink-0 font-bold">Days 4–10:</span>
+                  <span className="text-zinc-300">Standing surface water accumulates; root zones become completely anaerobic (zero oxygen).</span>
                 </div>
                 <div className="flex items-start gap-2">
-                  <span className="text-cyan-400 shrink-0 font-bold">दिवस ११+:</span>
-                  <span className="text-zinc-300">मुळे कुजतात (Root rot), पाने पिवळी पडून पिके आडवी होतात (Lodging).</span>
+                  <span className="text-cyan-400 shrink-0 font-bold">Days 11+:</span>
+                  <span className="text-zinc-300">Root rot develops; crop stems lodge flat into muddy water.</span>
                 </div>
                 <div className="p-2.5 rounded-lg bg-cyan-950/40 border border-cyan-500/30 text-cyan-200 text-[11px]">
-                  <strong>🛰️ NDVI परिणाम:</strong> साचलेले पाणी NIR शोषून घेते व पाने कुजतात. पाऊस भरपूर असूनही <strong>NDVI ०.५५ वरून थेट ०.३० पर्यंत खाली कोसळतो!</strong>
+                  <strong>🛰️ Satellite NDVI Effect:</strong> Standing water absorbs Near-Infrared (NIR) energy and rotting leaves lose chlorophyll. <strong>NDVI drops sharply from ~0.55 down to 0.30 despite rainfall surplus!</strong>
                 </div>
               </div>
             </div>
 
-            {/* Scenario B */}
+            {/* Scenario B: Rain Hiatus */}
             <div className="rounded-xl bg-black/50 border border-amber-500/30 p-4 space-y-2.5">
               <div className="flex items-center justify-between text-xs font-mono font-bold text-amber-300 border-b border-amber-500/20 pb-2">
                 <span className="flex items-center gap-1.5">
                   <Sun className="w-4 h-4 text-amber-400" />
-                  केस २: पावसाचा खंड पडल्यास (Prolonged Rain Hiatus)
+                  Scenario 2: Prolonged Rainless Break
                 </span>
-                <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px]">सुका दुष्काळ</span>
+                <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px]">Dry Drought</span>
               </div>
 
               <div className="space-y-2 text-xs font-mono">
                 <div className="flex items-start gap-2">
-                  <span className="text-amber-400 shrink-0 font-bold">आठवडा १-२:</span>
-                  <span className="text-zinc-300">वरच्या थरातील ओलावा संपतो; जमिनीला भेगा पडतात.</span>
+                  <span className="text-amber-400 shrink-0 font-bold">Weeks 1–2:</span>
+                  <span className="text-zinc-300">Topsoil moisture completely evaporates; soil fissures and deep cracks appear.</span>
                 </div>
                 <div className="flex items-start gap-2">
-                  <span className="text-amber-400 shrink-0 font-bold">आठवडा ३-४:</span>
-                  <span className="text-zinc-300">मुळांचे केशिका आकर्षण तुटते; पाने कोमेजून सुरकुततात (Wilting).</span>
+                  <span className="text-amber-400 shrink-0 font-bold">Weeks 3–4:</span>
+                  <span className="text-zinc-300">Capillary suction fails; plants reach permanent wilting point with leaf curling.</span>
                 </div>
                 <div className="flex items-start gap-2">
-                  <span className="text-amber-400 shrink-0 font-bold">आठवडा ५+:</span>
-                  <span className="text-zinc-300">हरितद्रव्य (Chlorophyll) नष्ट होऊन पाने वाळतात.</span>
+                  <span className="text-amber-400 shrink-0 font-bold">Weeks 5+:</span>
+                  <span className="text-zinc-300">Chlorophyll degrades and foliage turns straw brown.</span>
                 </div>
                 <div className="p-2.5 rounded-lg bg-amber-950/40 border border-amber-500/30 text-amber-200 text-[11px]">
-                  <strong>🛰️ NDVI परिणाम:</strong> वनस्पतींमधील पाण्याचे प्रमाण घटल्याने दर आठवड्याला <strong>NDVI सातत्याने घसरतो (उदा. ०.४८ → ०.४० → ०.३२).</strong>
+                  <strong>🛰️ Satellite NDVI Effect:</strong> Gradual, steady monotonic weekly decline in NDVI across consecutive weeks (e.g. 0.48 &rarr; 0.40 &rarr; 0.32).
                 </div>
               </div>
             </div>
