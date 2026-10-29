@@ -11,6 +11,12 @@ import {
   DroughtSeverity,
   VegetationStatus,
 } from './types';
+import {
+  buildLatestObservationMetadata,
+  buildCropSeasonContext,
+  buildPeriodComparisons,
+  buildMultiHazardStatus,
+} from './intelligence-engine';
 
 /**
  * Returns vegetation status according to project requirements:
@@ -892,23 +898,54 @@ export async function analyzeAreaNdvi(
             cached.request.country || options?.country || 'Global'
           );
 
+        const areaTitle = cached.request.area_name || requestedArea;
+        const stateTitle = cached.request.state || options?.state || '';
+        const countryTitle = cached.request.country || options?.country || 'Global';
+        const calcTime = cached.request.completed_at
+          ? new Date(cached.request.completed_at).toISOString()
+          : new Date().toISOString();
+
+        const cropSeasonContext = buildCropSeasonContext(areaTitle, stateTitle);
+        const latestObservation = buildLatestObservationMetadata(
+          cached.years,
+          cached.monthlyData || [],
+          cached.weeklyData || [],
+          false,
+          calcTime
+        );
+        const periodComparisons = buildPeriodComparisons(
+          cached.years,
+          cached.monthlyData || [],
+          cached.weeklyData || [],
+          cropSeasonContext
+        );
+        const multiHazardStatus = buildMultiHazardStatus(
+          droughtPrediction,
+          cached.monthlyData || [],
+          cached.weeklyData || [],
+          areaTitle,
+          stateTitle
+        );
+
         return {
-          area: cached.request.area_name || requestedArea,
-          country: cached.request.country || options?.country || 'Global',
-          state: cached.request.state || options?.state || '',
+          area: areaTitle,
+          country: countryTitle,
+          state: stateTitle,
           areaKm2: Number(cached.request.area_km2) || 0,
           years: cached.years,
           monthlyData: cached.monthlyData,
           weeklyData: cached.weeklyData,
           droughtPrediction,
+          latestObservation,
+          cropSeasonContext,
+          periodComparisons,
+          multiHazardStatus,
           metadata: {
             satelliteSource,
             boundarySource: cached.request.boundary_source || 'FAO/GAUL/2025/level2',
             analysisScope: cached.request.analysis_scope || 'ADMINISTRATIVE_DISTRICT',
             scopeDescription: `Loaded from cache for ${cached.request.area_name} (${cached.request.country})`,
-            calculatedAt: cached.request.completed_at
-              ? new Date(cached.request.completed_at).toISOString()
-              : new Date().toISOString(),
+            calculatedAt: calcTime,
             persistedToDb: true,
             requestId: cached.request.id,
             dbMessage: 'Returned from database cache; satellite recalculation was skipped.',
@@ -944,22 +981,53 @@ export async function analyzeAreaNdvi(
   );
 
   // 5. Build response object with transparent analysis scope metadata
+  const liveArea = boundary.areaName || requestedArea;
+  const liveState = boundary.state || options?.state || '';
+  const liveCountry = boundary.country || options?.country || 'Global';
+  const liveCalculatedAt = new Date().toISOString();
+
+  const liveCropSeasonContext = buildCropSeasonContext(liveArea, liveState);
+  const liveLatestObservation = buildLatestObservationMetadata(
+    multiTemporalResult.years,
+    multiTemporalResult.monthlyData,
+    multiTemporalResult.weeklyData,
+    true,
+    liveCalculatedAt
+  );
+  const livePeriodComparisons = buildPeriodComparisons(
+    multiTemporalResult.years,
+    multiTemporalResult.monthlyData,
+    multiTemporalResult.weeklyData,
+    liveCropSeasonContext
+  );
+  const liveMultiHazardStatus = buildMultiHazardStatus(
+    multiTemporalResult.droughtPrediction,
+    multiTemporalResult.monthlyData,
+    multiTemporalResult.weeklyData,
+    liveArea,
+    liveState
+  );
+
   const responseData: NdviAnalysisResponse = {
-    area: boundary.areaName || requestedArea,
-    country: boundary.country || options?.country || 'Global',
-    state: boundary.state || options?.state || '',
+    area: liveArea,
+    country: liveCountry,
+    state: liveState,
     areaKm2: boundary.areaKm2,
     years: multiTemporalResult.years,
     monthlyData: multiTemporalResult.monthlyData,
     weeklyData: multiTemporalResult.weeklyData,
     droughtPrediction: multiTemporalResult.droughtPrediction,
+    latestObservation: liveLatestObservation,
+    cropSeasonContext: liveCropSeasonContext,
+    periodComparisons: livePeriodComparisons,
+    multiHazardStatus: liveMultiHazardStatus,
     metadata: {
       satelliteSource,
       boundarySource: boundary.datasetUsed,
       analysisScope: boundary.analysisScope,
       scopeDescription: boundary.scopeDescription,
       geonameId: options?.geonameId,
-      calculatedAt: new Date().toISOString(),
+      calculatedAt: liveCalculatedAt,
     },
   };
 

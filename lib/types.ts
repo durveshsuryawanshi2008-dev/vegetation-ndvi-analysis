@@ -228,6 +228,121 @@ export interface WeeklyNdviResult {
   vegetationStatus: VegetationStatus;
 }
 
+export interface LatestObservationMetadata {
+  latestNdvi: number | null;
+  acquisitionDate: string;
+  satelliteSource: string;
+  cloudCoveragePercent: number;
+  validPixelCoveragePercent: number;
+  previousObservationValue: number | null;
+  previousObservationDate: string | null;
+  absoluteChange: number | null;
+  percentChange: number | null;
+  dataFreshness: 'Live Earth Engine Stream' | 'Database Cache Record' | 'Historical Archive';
+  freshnessTimestamp: string;
+  isCached: boolean;
+  resolutionMeters: number;
+}
+
+export interface CropSeasonContext {
+  activeSeason: 'Kharif (Monsoon/Autumn)' | 'Rabi (Winter/Spring)' | 'Zaid (Summer)' | 'Inter-Season Transition';
+  calendarWindow: string;
+  cropStage: 'Sowing & Germination' | 'Vegetative Growth' | 'Flowering & Grain Filling' | 'Harvesting & Stubble Clearing' | 'Post-Harvest Fallow';
+  isHarvestSeason: boolean;
+  phenologyAlert: string | null;
+}
+
+export interface PeriodComparisonItem {
+  periodType: 'this_week_vs_last_week' | 'this_month_vs_last_month' | 'this_year_vs_last_year' | 'same_season_prior_years' | 'custom_comparison';
+  title: string;
+  periodA: { label: string; value: number | null; dateRange: string };
+  periodB: { label: string; value: number | null; dateRange: string };
+  absoluteChange: number | null;
+  percentChange: number | null;
+  baselineValue?: number | null;
+  anomaly?: number | null;
+  explanation: string;
+  seasonalityFactored: boolean;
+}
+
+export interface SourcedDisasterEvent {
+  id: string;
+  title: string;
+  hazardType: 'Agricultural Drought' | 'Wet Drought & Flood Inundation' | 'Severe Cyclone' | 'Extreme Heatwave' | 'Wildfire / Rapid Defoliation';
+  location: string;
+  state: string;
+  country: string;
+  dateRange: string;
+  peakPeriod: string;
+  impactMetrics: {
+    affectedAcreageOrPeople: string;
+    satelliteNdviAnomaly: string;
+    rainfallDepartureOrWindSpeed: string;
+    officialDeclaration: string;
+  };
+  evidenceSummary: string;
+  sourceAttribution: string;
+  officialReferenceUrl: string;
+  satelliteSensor: string;
+}
+
+export interface SatelliteGalleryItem {
+  id: string;
+  title: string;
+  hazardType: 'Drought' | 'Flood' | 'Cyclone' | 'Wildfire' | 'Agricultural Inundation';
+  location: string;
+  eventDate: string;
+  beforeDate: string;
+  afterDate: string;
+  beforeImageUrl: string;
+  afterImageUrl: string;
+  ndviAnomalyMapUrl?: string;
+  ndmiMoistureMapUrl?: string;
+  sensor: string;
+  description: string;
+  attribution: string;
+  license: string;
+  isRealObservation: boolean;
+}
+
+export interface MultiHazardStatus {
+  drought: {
+    observedStressLevel: 'Low' | 'Moderate' | 'High' | 'Severe';
+    estimatedRiskScore: number;
+    ndviAnomalyPercent: number;
+    rainfallDeficitPercent: number;
+    ndmiMoistureStatus: string;
+    soilCapillaryStatus: string;
+    forecastAssessment: string;
+  };
+  flood: {
+    observedInundationDetected: boolean;
+    radarSarSignal: string;
+    topographicSusceptibility: 'Low' | 'Moderate' | 'High' | 'Severe (Valley / Black Cotton Clay)';
+    cumulativeRainfall3DayMm: number;
+    drainageCapacityRating: string;
+    disclaimer: string;
+  };
+  cyclone: {
+    activeWarning: boolean;
+    systemName?: string;
+    imdCategory?: string;
+    projectedLandfall?: string;
+    officialBulletinsUrl?: string;
+    disclaimer: string;
+  };
+  rapidVegetationLoss: {
+    recentDropPercent: number;
+    qualityFlags: {
+      cloudCoverPercent: number;
+      validPixelFraction: number;
+      dataCompleteness: 'Sufficient Observations' | 'Cloud Obscured (Cannot Determine Safety)';
+    };
+    unexplainedCanopyLossDetected: boolean;
+    possibleCauses: string[];
+  };
+}
+
 export interface NdviAnalysisResponse {
   area: string;
   country: string;
@@ -237,6 +352,10 @@ export interface NdviAnalysisResponse {
   monthlyData?: MonthlyNdviResult[];
   weeklyData?: WeeklyNdviResult[];
   droughtPrediction?: DroughtPrediction;
+  latestObservation?: LatestObservationMetadata;
+  cropSeasonContext?: CropSeasonContext;
+  multiHazardStatus?: MultiHazardStatus;
+  periodComparisons?: PeriodComparisonItem[];
   metadata?: {
     satelliteSource: string;
     boundarySource: string;

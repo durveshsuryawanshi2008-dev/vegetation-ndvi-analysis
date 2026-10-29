@@ -16,12 +16,14 @@ import {
   Activity,
   Sparkles,
 } from 'lucide-react';
-import { MonthlyNdviResult, WeeklyNdviResult } from '@/lib/types';
+import { MonthlyNdviResult, WeeklyNdviResult, CropSeasonContext, DroughtPrediction } from '@/lib/types';
 
 interface MonthlyComparisonVerdictProps {
   monthlyData?: MonthlyNdviResult[];
   weeklyData?: WeeklyNdviResult[];
   areaName: string;
+  cropSeasonContext?: CropSeasonContext;
+  droughtPrediction?: DroughtPrediction;
   onViewMonthlyChart?: () => void;
   onViewWeeklyChart?: () => void;
 }
@@ -30,6 +32,8 @@ export function MonthlyComparisonVerdict({
   monthlyData = [],
   weeklyData = [],
   areaName,
+  cropSeasonContext,
+  droughtPrediction,
   onViewMonthlyChart,
   onViewWeeklyChart,
 }: MonthlyComparisonVerdictProps) {
@@ -47,11 +51,22 @@ export function MonthlyComparisonVerdict({
   const deltaVal = currentVal - prevVal;
   const deltaPercent = prevVal > 0 ? Number(((deltaVal / prevVal) * 100).toFixed(1)) : 0;
 
-  // Determine Drought Verdict solely by comparing last month's index
-  const isSevereDrought = deltaPercent <= -12;
-  const isModerateDrought = deltaPercent > -12 && deltaPercent <= -5;
-  const isStable = deltaPercent > -5 && deltaPercent <= 5;
+  // Scientifically Rigorous Drought Determination:
+  // A percentage decline alone is NEVER treated as proof of drought.
+  // We cross-reference regional crop harvest phenology, rainfall deficit, and VCI.
+  const isHarvestWindow = cropSeasonContext?.isHarvestSeason ?? false;
+  const hasRainfallDeficit =
+    droughtPrediction?.rainfallStressIndex === 'Critical Deficit' ||
+    droughtPrediction?.rainfallStressIndex === 'Moderate Deficit';
+  const hasLowVci = (droughtPrediction?.vci ?? 50) < 40;
+
+  const isDroughtConfirmed = deltaPercent <= -12 && hasRainfallDeficit && hasLowVci;
+  const isHarvestDecline = deltaPercent <= -6 && isHarvestWindow && !hasRainfallDeficit;
+  const isModerateMoistureStress = deltaPercent > -12 && deltaPercent <= -5 && (hasRainfallDeficit || hasLowVci);
   const isGrowth = deltaPercent > 5;
+
+  const isSevereDrought = isDroughtConfirmed;
+  const isModerateDrought = isModerateMoistureStress;
 
   let verdictTitle = '';
   let verdictStatus = '';
@@ -61,38 +76,46 @@ export function MonthlyComparisonVerdict({
   let verdictIcon = CheckCircle2;
   let verdictExplanation = '';
 
-  if (isSevereDrought) {
-    verdictTitle = 'DROUGHT STRESS EVENT DETECTED';
-    verdictStatus = 'CRITICAL DECLINE VS. LAST MONTH';
+  if (isDroughtConfirmed) {
+    verdictTitle = 'CONFIRMED AGRICULTURAL DROUGHT STRESS';
+    verdictStatus = 'DEFICIT CONFIRMED BY RAINFALL & VCI';
     verdictBadgeBg = 'bg-rose-500 text-black border-rose-400';
     verdictBorderColor = 'border-rose-500/50 bg-gradient-to-r from-rose-950/60 via-red-950/40 to-black/80';
     verdictGlow = 'shadow-[0_0_35px_rgba(244,63,94,0.2)]';
     verdictIcon = ShieldAlert;
-    verdictExplanation = `Drought conditions have occurred in ${areaName}. By comparing only the last month's indices, NDVI contracted sharply by ${Math.abs(deltaPercent)}% from ${previousMonth.label} (${prevVal.toFixed(4)}) to ${currentMonth.label} (${currentVal.toFixed(4)}). Standing vegetation has entered acute moisture deficit, with severe risk of crop wilting and biomass loss.`;
-  } else if (isModerateDrought) {
-    verdictTitle = 'MODERATE DROUGHT STRESS WARNING';
-    verdictStatus = 'CANOPY MOISTURE RECEDING';
+    verdictExplanation = `Drought stress is verified for ${areaName}. NDVI contracted by ${Math.abs(deltaPercent)}% from ${previousMonth.label} (${prevVal.toFixed(4)}) to ${currentMonth.label} (${currentVal.toFixed(4)}). Crucially, this decline is substantiated by a concurrent precipitation deficit and a depressed Vegetation Condition Index (VCI: ${droughtPrediction?.vci.toFixed(1)}%), proving genuine root-zone soil moisture exhaustion.`;
+  } else if (isHarvestDecline) {
+    verdictTitle = 'NORMAL POST-HARVEST PHENOLOGICAL DECLINE (NOT DROUGHT)';
+    verdictStatus = 'SEASONAL HARVEST SENESCENCE ACTIVE';
+    verdictBadgeBg = 'bg-cyan-500 text-black border-cyan-400';
+    verdictBorderColor = 'border-cyan-500/50 bg-gradient-to-r from-cyan-950/50 via-teal-950/30 to-black/80';
+    verdictGlow = 'shadow-[0_0_25px_rgba(6,182,212,0.15)]';
+    verdictIcon = ShieldCheck;
+    verdictExplanation = `While NDVI declined by ${Math.abs(deltaPercent)}% from ${previousMonth.label} (${prevVal.toFixed(4)}) to ${currentMonth.label} (${currentVal.toFixed(4)}), this coincides directly with the active ${cropSeasonContext?.activeSeason} harvesting period. Rainfall metrics remain adequate. The drop reflects mature crop cutting and field stubble clearing rather than drought desiccation.`;
+  } else if (isModerateMoistureStress) {
+    verdictTitle = 'MODERATE VEGETATION MOISTURE STRESS';
+    verdictStatus = 'CANOPY WATER DEFICIT DETECTED';
     verdictBadgeBg = 'bg-amber-500 text-black border-amber-400';
     verdictBorderColor = 'border-amber-500/50 bg-gradient-to-r from-amber-950/50 via-yellow-950/30 to-black/80';
     verdictGlow = 'shadow-[0_0_25px_rgba(245,158,11,0.15)]';
     verdictIcon = AlertTriangle;
-    verdictExplanation = `Noticeable vegetation stress detected in ${areaName}. NDVI declined by ${Math.abs(deltaPercent)}% compared to last month (${previousMonth.label}: ${prevVal.toFixed(4)} → ${currentMonth.label}: ${currentVal.toFixed(4)}). Soil capillary water is diminishing, and crops require proactive moisture conservation.`;
+    verdictExplanation = `Noticeable moisture deficit in ${areaName}. NDVI contracted by ${Math.abs(deltaPercent)}% (${previousMonth.label}: ${prevVal.toFixed(4)} → ${currentMonth.label}: ${currentVal.toFixed(4)}). Soil capillary water is diminishing, and crops require proactive protective irrigation.`;
   } else if (isGrowth) {
-    verdictTitle = 'OPTIMAL VEGETATION EXPANSION';
-    verdictStatus = 'HEALTHY GROWTH VS. LAST MONTH';
+    verdictTitle = 'OPTIMAL VEGETATION GROWTH & CANOPY EXPANSION';
+    verdictStatus = 'HEALTHY EXPANSION VS. LAST MONTH';
     verdictBadgeBg = 'bg-eco-neon text-black border-eco-400';
     verdictBorderColor = 'border-eco-500/40 bg-gradient-to-r from-eco-950/50 via-emerald-950/30 to-black/80';
     verdictGlow = 'shadow-[0_0_25px_rgba(198,241,53,0.15)]';
     verdictIcon = Sparkles;
-    verdictExplanation = `Vegetation is flourishing across ${areaName}. Compared to last month, NDVI increased by +${deltaPercent}% (${previousMonth.label}: ${prevVal.toFixed(4)} → ${currentMonth.label}: ${currentVal.toFixed(4)}). Active photosynthesis and abundant surface moisture are promoting rapid canopy biomass development.`;
+    verdictExplanation = `Vegetation is flourishing across ${areaName}. NDVI increased by +${deltaPercent}% compared to last month (${previousMonth.label}: ${prevVal.toFixed(4)} → ${currentMonth.label}: ${currentVal.toFixed(4)}). Favorable soil moisture is supporting vigorous biomass accumulation.`;
   } else {
-    verdictTitle = 'EVERYTHING IS OK: STABLE CONDITIONS';
+    verdictTitle = 'EVERYTHING IS OK: STABLE CANOPY CONDITIONS';
     verdictStatus = 'NO DROUGHT EVENT DETECTED';
     verdictBadgeBg = 'bg-emerald-500 text-black border-emerald-400';
     verdictBorderColor = 'border-emerald-500/40 bg-gradient-to-r from-emerald-950/40 via-teal-950/30 to-black/80';
     verdictGlow = 'shadow-[0_0_25px_rgba(16,185,129,0.15)]';
     verdictIcon = ShieldCheck;
-    verdictExplanation = `Everything is OK in ${areaName}. Comparing only the last month's indices shows stable conditions with a minimal shift of ${deltaPercent > 0 ? '+' : ''}${deltaPercent}% (${previousMonth.label}: ${prevVal.toFixed(4)} → ${currentMonth.label}: ${currentVal.toFixed(4)}). No drought or significant vegetative stress is present.`;
+    verdictExplanation = `Everything is OK in ${areaName}. Month-over-month telemetry demonstrates stable conditions with a minimal shift of ${deltaPercent > 0 ? '+' : ''}${deltaPercent}% (${previousMonth.label}: ${prevVal.toFixed(4)} → ${currentMonth.label}: ${currentVal.toFixed(4)}). No drought or significant vegetative stress is present.`;
   }
 
   const VerdictIconComponent = verdictIcon;
