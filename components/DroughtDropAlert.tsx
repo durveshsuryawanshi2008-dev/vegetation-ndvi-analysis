@@ -117,6 +117,14 @@ export function DroughtDropAlert({ data, onDrilldownToMonths }: DroughtDropAlert
   const isSevere = detectedDropPct < -12 || anomalyPct < -15 || vci < 25;
   const isModerate = !isSevere && (detectedDropPct < -7 || anomalyPct < -10 || vci < 38);
 
+  // Determine if this is an Ola Dushkal (Wet Drought / excess rain rot) vs Suka Dushkal (Dry Drought / aridity wilting)
+  const isOlaDushkal =
+    data.droughtPrediction?.droughtType === 'Ola Dushkal (Wet Drought)' ||
+    data.droughtPrediction?.rainfallStressIndex === 'Surplus';
+
+  const [activeDushkalView, setActiveDushkalView] = useState<'auto' | 'suka' | 'ola'>('auto');
+  const effectiveIsOla = activeDushkalView === 'ola' || (activeDushkalView === 'auto' && isOlaDushkal);
+
   // Region and territory
   const area = data.area;
   const isMaharashtra =
@@ -127,25 +135,24 @@ export function DroughtDropAlert({ data, onDrilldownToMonths }: DroughtDropAlert
 
   // Historical Precedent Generation ("Last time such happened...")
   let historicalPrecedent = '';
-  let pastEventYear = '2018–2019';
-  let pastEventConsequence = '';
+  let pastEventYear = effectiveIsOla ? 'October 2022 / 2024' : '2018–2019';
+  let dushkalBadgeTitle = effectiveIsOla ? 'ओला दुष्काळ (Wet Drought)' : 'सुका दुष्काळ (Dry Drought)';
 
-  if (isMaharashtra) {
+  if (effectiveIsOla) {
+    pastEventYear = 'October 2022 / 2024 (ओला दुष्काळ)';
+    historicalPrecedent = isMaharashtra
+      ? `गेल्या वर्षी महाराष्ट्रात (ऑक्टोबर २०२२ व २०२४ मध्ये) सतत पडलेल्या मुसळधार पावसामुळे काळ्या मातीत पाणी साचून मुळे कुजली (Root Rot) व पिके भुईसपाट झाली. पाऊस भरपूर असूनही NDVI निर्देशांकात अशीच ${Math.abs(detectedDropPct).toFixed(1)}% तीव्र घसरण झाली होती. यालाच 'ओला दुष्काळ' म्हणतात.`
+      : `In past continuous excessive rainfall episodes (${pastEventYear}), waterlogging in clay-rich soils caused root asphyxiation, collar rot, and an abrupt drop in NDVI (${Math.abs(detectedDropPct).toFixed(1)}%) despite rain surplus (Wet Drought / Inundation).`;
+  } else if (isMaharashtra) {
     if (isSevere) {
-      pastEventYear = '2018–2019';
-      pastEventConsequence =
-        'severe agricultural drought declared across 151 talukas (26 districts), with over 42% crop loss in Kharif pulses/soybean, acute drinking water depletion, and deployment of 6,200+ emergency water tankers.';
-      historicalPrecedent = `The last time an NDVI drop of this magnitude (${Math.abs(detectedDropPct).toFixed(1)}%) occurred in ${area} was in ${pastEventYear} (and late 2023). At that time, this rapid drop in greenness was followed by ${pastEventConsequence}`;
+      pastEventYear = '2018–2019 (सुका दुष्काळ)';
+      historicalPrecedent = `महाराष्ट्रात (विशेषतः अहिल्यानगर, सोलापूर, मराठवाड्यात) २०१८-१९ मध्ये असाच पाऊस खंडित झाल्याने NDVI मध्ये ${Math.abs(detectedDropPct).toFixed(1)}% घसरण झाली होती. त्यावेळी १५१ तालुक्यांत गंभीर दुष्काळ जाहीर होऊन खरीप पिके वाळून गेली होती आणि ६,२०० हून अधिक पाण्याचे टँकर सुरू करावे लागले होते.`;
     } else if (isModerate) {
-      pastEventYear = 'August 2023';
-      pastEventConsequence =
-        'a 22-day dry spell led to mid-season moisture stress, premature wilting of rainfed crops, and an estimated 25% drop in Rabi sowing acreage across Western Maharashtra and Marathwada.';
-      historicalPrecedent = `The last time an NDVI drop of this size (${Math.abs(detectedDropPct).toFixed(1)}%) occurred in ${area} was during the ${pastEventYear} monsoon hiatus. At that time, ${pastEventConsequence}`;
+      pastEventYear = 'ऑगस्ट २०२३ (पावसाचा खंड)';
+      historicalPrecedent = `ऑगस्ट २०२३ मधील २२ दिवसांच्या सलग पावसाच्या खंडामुळे पिकांची पाने कोमेजून NDVI मध्ये अशीच ${Math.abs(detectedDropPct).toFixed(1)}% घसरण झाली होती, ज्यामुळे रब्बीच्या पेरण्या २५% नी घटल्या होत्या.`;
     } else {
-      pastEventYear = '2021 post-monsoon';
-      pastEventConsequence =
-        'unseasonal dry winds caused topsoil moisture exhaustion, requiring immediate protective irrigation to prevent yield loss.';
-      historicalPrecedent = `A similar rate of vegetation decline occurred in ${area} during ${pastEventYear}, when ${pastEventConsequence}`;
+      pastEventYear = '२०२१ परतीचा दुष्काळ ताण';
+      historicalPrecedent = `२०२१ मधील कोरड्या हवामानामुळे जमिनीत ओलाव्याचा ताण निर्माण होऊन ${area} मध्ये अशाच प्रकारची वनस्पती घसरण नोंदवली गेली होती.`;
     }
   } else {
     // Generic global territory fallback
@@ -197,6 +204,16 @@ export function DroughtDropAlert({ data, onDrilldownToMonths }: DroughtDropAlert
                 VEGETATION INDEX DROP ALERT
               </span>
 
+              <span
+                className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-full font-bold border ${
+                  effectiveIsOla
+                    ? 'bg-cyan-950/60 text-cyan-300 border-cyan-500/50'
+                    : 'bg-amber-950/60 text-amber-300 border-amber-500/50'
+                }`}
+              >
+                {effectiveIsOla ? '🌧️ ' : '☀️ '} {dushkalBadgeTitle}
+              </span>
+
               <span className="text-[11px] font-mono text-zinc-300">
                 Region: <strong className="text-white">{area}</strong>
               </span>
@@ -225,8 +242,46 @@ export function DroughtDropAlert({ data, onDrilldownToMonths }: DroughtDropAlert
         )}
       </div>
 
+      {/* ── Historical Mode Switcher (Suka vs Ola Dushkal) ───────────── */}
+      <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-white/5">
+        <span className="text-[10px] font-mono uppercase text-zinc-400">तुलना दाखला:</span>
+        <button
+          type="button"
+          onClick={() => setActiveDushkalView('auto')}
+          className={`px-2.5 py-1 rounded-md text-[11px] font-mono transition-all ${
+            activeDushkalView === 'auto'
+              ? 'bg-white/20 text-white font-bold border border-white/30'
+              : 'bg-white/[0.04] text-zinc-400 hover:text-white'
+          }`}
+        >
+          स्वयंचलित सॅटेलाईट (Live Detection)
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveDushkalView('ola')}
+          className={`px-2.5 py-1 rounded-md text-[11px] font-mono transition-all ${
+            activeDushkalView === 'ola'
+              ? 'bg-cyan-500/30 text-cyan-300 font-bold border border-cyan-500/50'
+              : 'bg-white/[0.04] text-zinc-400 hover:text-white'
+          }`}
+        >
+          🌧️ ओला दुष्काळ दाखला (Wet Drought - 2022/2024)
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveDushkalView('suka')}
+          className={`px-2.5 py-1 rounded-md text-[11px] font-mono transition-all ${
+            activeDushkalView === 'suka'
+              ? 'bg-amber-500/30 text-amber-300 font-bold border border-amber-500/50'
+              : 'bg-white/[0.04] text-zinc-400 hover:text-white'
+          }`}
+        >
+          ☀️ सुका दुष्काळ दाखला (Dry Drought - 2018/2023)
+        </button>
+      </div>
+
       {/* ── Key Insight & Historical Precedent Box ─────────────────────── */}
-      <div className="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
+      <div className="mt-2 grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* Left: Historical Memory Match */}
         <div className="lg:col-span-8 p-4 rounded-xl bg-black/40 border border-white/10 space-y-2">
           <div className="flex items-center gap-2 text-xs font-mono font-bold text-amber-300 uppercase tracking-wider">
@@ -254,20 +309,36 @@ export function DroughtDropAlert({ data, onDrilldownToMonths }: DroughtDropAlert
         <div className="lg:col-span-4 p-4 rounded-xl bg-black/40 border border-white/10 space-y-2">
           <div className="flex items-center gap-2 text-xs font-mono font-bold text-eco-neon uppercase tracking-wider">
             <Droplets className="w-4 h-4 text-eco-neon" />
-            <span>Recommended Counter-Action</span>
+            <span>
+              {effectiveIsOla ? 'ओला दुष्काळ उपाययोजना' : 'सुका दुष्काळ उपाययोजना'}
+            </span>
           </div>
 
-          <ul className="text-xs text-zinc-300 space-y-1.5 list-disc list-inside">
-            <li>
-              Enforce <strong>nocturnal micro-irrigation (drip / sprinkler)</strong> between 8 PM and 6 AM to stop evaporation.
-            </li>
-            <li>
-              Apply <strong>5–7 cm organic straw mulching</strong> to conserve root-zone capillary moisture.
-            </li>
-            <li>
-              Deploy <strong>1–2% Potassium Nitrate (KNO₃) foliar spray</strong> to support crop osmotic adjustment.
-            </li>
-          </ul>
+          {effectiveIsOla ? (
+            <ul className="text-xs text-zinc-300 space-y-1.5 list-disc list-inside">
+              <li>
+                शेतातील साचलेले पाणी बाहेर काढण्यासाठी <strong>३० सेमी खोल चर (Drainage Trenches)</strong> काढा.
+              </li>
+              <li>
+                मुळे कुजणे रोखण्यासाठी <strong>कॉपर ऑक्सिक्लोराईड (२.५ ग्रॅम/लि)</strong> किंवा कार्बेन्डाझिमची आळवणी करा.
+              </li>
+              <li>
+                ओल्या जमिनीत <strong>युरिया बंद करा</strong>; पाणी ओसरल्यावर १९:१९:१९ ची हलकी फवारणी करा.
+              </li>
+            </ul>
+          ) : (
+            <ul className="text-xs text-zinc-300 space-y-1.5 list-disc list-inside">
+              <li>
+                बाष्पीभवन टाळण्यासाठी केवळ <strong>रात्रीच्या वेळीच ठिबक/तुषार सिंचन</strong> वापरा.
+              </li>
+              <li>
+                ओलावा टिकवण्यासाठी पिकाच्या ओळींमध्ये <strong>५–७ सेमी सेंद्रिय काडीकचऱ्याचे आच्छादन (Mulching)</strong> करा.
+              </li>
+              <li>
+                उष्णतेचा ताण सहन करण्यासाठी <strong>१% पोटॅशियम नायट्रेट (KNO₃) फवारा</strong>.
+              </li>
+            </ul>
+          )}
         </div>
       </div>
 

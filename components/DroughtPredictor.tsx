@@ -130,6 +130,20 @@ export function DroughtPredictor({
             <span className={`text-[10px] font-mono uppercase px-2.5 py-0.5 rounded-full border font-bold ${theme.badgeBg}`}>
               {droughtSeverity}
             </span>
+            {droughtPrediction.droughtType && (
+              <span
+                className={`text-[10px] font-mono uppercase px-2.5 py-0.5 rounded-full border font-bold ${
+                  droughtPrediction.droughtType === 'Ola Dushkal (Wet Drought)'
+                    ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                    : droughtPrediction.droughtType === 'Suka Dushkal (Dry Drought)'
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                    : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                }`}
+              >
+                {droughtPrediction.droughtTypeMarathi ? `${droughtPrediction.droughtTypeMarathi} • ` : ''}
+                {droughtPrediction.droughtType}
+              </span>
+            )}
           </div>
 
           <h3 className="text-xl sm:text-2xl font-bold font-display text-white tracking-tight flex items-center gap-2.5">
