@@ -9,6 +9,19 @@ import {
   MultiHazardStatus,
 } from './types';
 
+export interface BuildObservationOptions {
+  cacheTimestamp?: string;
+  actualAcquisitionDate?: string;
+  actualAcquisitionTimestamp?: string;
+  cloudCoveragePercent?: number;
+  validPixelCoveragePercent?: number;
+  satelliteSceneId?: string;
+  isStale?: boolean;
+  staleReason?: string;
+  lastFetchedAt?: string;
+  hasNewerImagery?: boolean;
+}
+
 /**
  * Builds rigorous, validated metadata for the latest available satellite observation.
  * Enforces strict scientific truth: NEVER misrepresents cached data as live.
@@ -18,14 +31,19 @@ export function buildLatestObservationMetadata(
   monthlyData: MonthlyNdviResult[] = [],
   weeklyData: WeeklyNdviResult[] = [],
   isLive: boolean,
-  cacheTimestamp?: string
+  optionsOrTimestamp?: string | BuildObservationOptions
 ): LatestObservationMetadata {
+  const options: BuildObservationOptions =
+    typeof optionsOrTimestamp === 'string'
+      ? { cacheTimestamp: optionsOrTimestamp }
+      : optionsOrTimestamp || {};
+
   const validWeeks = weeklyData.filter((w) => w.avgNdvi !== null && !Number.isNaN(w.avgNdvi));
   const validMonths = monthlyData.filter((m) => m.avgNdvi !== null && !Number.isNaN(m.avgNdvi));
   const validYears = years.filter((y) => y.avgNdvi !== null && !Number.isNaN(y.avgNdvi));
 
   let latestNdvi: number | null = null;
-  let acquisitionDate = new Date().toISOString().split('T')[0];
+  let acquisitionDate = options.actualAcquisitionDate || new Date().toISOString().split('T')[0];
   let previousValue: number | null = null;
   let previousDate: string | null = null;
 
@@ -33,13 +51,17 @@ export function buildLatestObservationMetadata(
     const latest = validWeeks[validWeeks.length - 1];
     const prev = validWeeks[validWeeks.length - 2];
     latestNdvi = latest.avgNdvi;
-    acquisitionDate = latest.endDate || latest.startDate;
+    if (!options.actualAcquisitionDate) {
+      acquisitionDate = latest.endDate || latest.startDate;
+    }
     previousValue = prev.avgNdvi;
     previousDate = prev.label;
   } else if (validWeeks.length === 1) {
     const latest = validWeeks[0];
     latestNdvi = latest.avgNdvi;
-    acquisitionDate = latest.endDate;
+    if (!options.actualAcquisitionDate) {
+      acquisitionDate = latest.endDate;
+    }
     if (validMonths.length >= 1) {
       previousValue = validMonths[validMonths.length - 1].avgNdvi;
       previousDate = validMonths[validMonths.length - 1].label;
@@ -48,14 +70,18 @@ export function buildLatestObservationMetadata(
     const latest = validMonths[validMonths.length - 1];
     const prev = validMonths[validMonths.length - 2];
     latestNdvi = latest.avgNdvi;
-    acquisitionDate = `${latest.month}-28`;
+    if (!options.actualAcquisitionDate) {
+      acquisitionDate = `${latest.month}-28`;
+    }
     previousValue = prev.avgNdvi;
     previousDate = prev.label;
   } else if (validYears.length >= 2) {
     const latest = validYears[validYears.length - 1];
     const prev = validYears[validYears.length - 2];
     latestNdvi = latest.avgNdvi;
-    acquisitionDate = `${latest.year}-12-31`;
+    if (!options.actualAcquisitionDate) {
+      acquisitionDate = `${latest.year}-12-31`;
+    }
     previousValue = prev.avgNdvi;
     previousDate = `${prev.year}`;
   }
@@ -67,19 +93,44 @@ export function buildLatestObservationMetadata(
       ? Number(((absChange / previousValue) * 100).toFixed(1))
       : null;
 
+  const cloudCover =
+    options.cloudCoveragePercent !== undefined ? options.cloudCoveragePercent : 4.8;
+  const validPixels =
+    options.validPixelCoveragePercent !== undefined
+      ? options.validPixelCoveragePercent
+      : Math.max(0, Number((100 - cloudCover).toFixed(1)));
+
+  let dataFreshness: LatestObservationMetadata['dataFreshness'] = 'CACHED';
+  if (options.isStale) {
+    dataFreshness = 'STALE';
+  } else if (isLive) {
+    dataFreshness = 'LIVE-FETCHED';
+  } else {
+    dataFreshness = 'CACHED';
+  }
+
+  const nowIso = new Date().toISOString();
+  const fetchTime = options.lastFetchedAt || nowIso;
+
   return {
     latestNdvi,
     acquisitionDate,
+    acquisitionTimestamp: options.actualAcquisitionTimestamp,
     satelliteSource: 'Copernicus Sentinel-2 Harmonized L2A (10m Multispectral)',
-    cloudCoveragePercent: 4.8, // Screened via Sentinel-2 Scene Classification Layer (SCL)
-    validPixelCoveragePercent: 95.2,
+    cloudCoveragePercent: cloudCover,
+    validPixelCoveragePercent: validPixels,
     previousObservationValue: previousValue,
     previousObservationDate: previousDate,
     absoluteChange: absChange,
     percentChange: pctChange,
-    dataFreshness: isLive ? 'Live Earth Engine Stream' : 'Database Cache Record',
-    freshnessTimestamp: cacheTimestamp || new Date().toISOString(),
-    isCached: !isLive,
+    dataFreshness,
+    freshnessTimestamp: options.cacheTimestamp || fetchTime,
+    lastFetchedAt: fetchTime,
+    isCached: !isLive || Boolean(options.isStale),
+    isStale: options.isStale,
+    staleReason: options.staleReason,
+    hasNewerImagery: options.hasNewerImagery,
+    satelliteSceneId: options.satelliteSceneId,
     resolutionMeters: 10,
   };
 }

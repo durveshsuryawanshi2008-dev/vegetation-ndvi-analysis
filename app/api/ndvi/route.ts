@@ -3,6 +3,8 @@ import { analyzeAreaNdvi } from '@/lib/ndvi';
 import { isEarthEngineConfigured } from '@/lib/earthengine';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
 export const maxDuration = 60; // 60 seconds satellite processing time window
 
 export async function POST(req: NextRequest) {

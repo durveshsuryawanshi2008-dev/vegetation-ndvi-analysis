@@ -10,12 +10,13 @@ import {
   TrendingUp,
   Minus,
   Clock,
-  Layers,
-  ShieldCheck,
-  Database,
   Radio,
-  Eye,
+  Database,
   Sparkles,
+  Eye,
+  AlertTriangle,
+  RotateCw,
+  Layers,
 } from 'lucide-react';
 import { LatestObservationMetadata, CropSeasonContext } from '@/lib/types';
 
@@ -23,12 +24,22 @@ interface LatestObservationCardProps {
   latestObservation?: LatestObservationMetadata;
   cropSeasonContext?: CropSeasonContext;
   areaName: string;
+  lastCheckedAt?: string | null;
+  isCheckingUpdates?: boolean;
+  isPollingPaused?: boolean;
+  onManualRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 export function LatestObservationCard({
   latestObservation,
   cropSeasonContext,
   areaName,
+  lastCheckedAt,
+  isCheckingUpdates,
+  isPollingPaused,
+  onManualRefresh,
+  isRefreshing,
 }: LatestObservationCardProps) {
   if (!latestObservation || latestObservation.latestNdvi === null) {
     return null;
@@ -37,18 +48,29 @@ export function LatestObservationCard({
   const {
     latestNdvi,
     acquisitionDate,
+    acquisitionTimestamp,
     satelliteSource,
     cloudCoveragePercent,
     validPixelCoveragePercent,
     previousObservationValue,
     previousObservationDate,
-    absoluteChange,
     percentChange,
     dataFreshness,
     freshnessTimestamp,
+    lastFetchedAt,
     isCached,
-    resolutionMeters,
+    isStale,
+    staleReason,
+    satelliteSceneId,
   } = latestObservation;
+
+  const isLive = dataFreshness === 'LIVE-FETCHED' || dataFreshness === 'Live Earth Engine Stream';
+  const isStaleData = isStale || dataFreshness === 'STALE';
+
+  // Calculate days since satellite acquisition
+  const daysOld = Math.floor(
+    (Date.now() - new Date(acquisitionDate).getTime()) / (1000 * 60 * 60 * 24)
+  );
 
   return (
     <div className="glass-panel rounded-2xl p-5 sm:p-6 border border-white/10 space-y-4 shadow-[0_0_25px_rgba(0,0,0,0.3)] relative overflow-hidden">
@@ -59,29 +81,37 @@ export function LatestObservationCard({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
         <div>
           <div className="flex flex-wrap items-center gap-2 mb-1">
+            {/* Honest Data Freshness Badge */}
             <span
               className={`text-[10px] font-mono uppercase px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1.5 border ${
-                !isCached
+                isStaleData
+                  ? 'bg-amber-950/60 text-amber-300 border-amber-500/50'
+                  : isLive
                   ? 'bg-emerald-950/60 text-emerald-300 border-emerald-500/50'
                   : 'bg-zinc-900 text-zinc-300 border-zinc-700'
               }`}
             >
-              {!isCached ? (
+              {isStaleData ? (
+                <>
+                  <AlertTriangle className="w-3 h-3 text-amber-400" />
+                  STALE DATA (DATABASE FALLBACK)
+                </>
+              ) : isLive ? (
                 <>
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
                   <Radio className="w-3 h-3 text-emerald-400" />
-                  Live Earth Engine Stream
+                  LIVE-FETCHED FROM EARTH ENGINE
                 </>
               ) : (
                 <>
                   <Database className="w-3 h-3 text-zinc-400" />
-                  Database Cached Record
+                  DATABASE CACHED RECORD
                 </>
               )}
             </span>
 
             <span className="text-[11px] font-mono text-zinc-400">
-              10-Meter Multi-Spectral Resolution
+              10-Meter Multispectral Surface Reflectance
             </span>
           </div>
 
@@ -91,15 +121,50 @@ export function LatestObservationCard({
           </h3>
         </div>
 
-        {/* Data Freshness Timestamp */}
-        <div className="text-left sm:text-right font-mono text-[11px] text-zinc-400">
-          <span className="text-zinc-500 block uppercase text-[9px]">Verified Acquisition Pass</span>
-          <span className="text-white font-semibold flex items-center gap-1 sm:justify-end">
-            <Calendar className="w-3 h-3 text-eco-neon" />
-            {acquisitionDate}
-          </span>
+        {/* Acquisition & Fetch Timestamps */}
+        <div className="flex flex-col sm:items-end font-mono text-[11px] text-zinc-400 gap-0.5">
+          <div className="flex items-center gap-1.5">
+            <Calendar className="w-3.5 h-3.5 text-eco-neon" />
+            <span className="text-zinc-500">Acquisition:</span>
+            <span className="text-white font-semibold">{acquisitionDate}</span>
+            {acquisitionTimestamp && (
+              <span className="text-zinc-500 text-[10px]">
+                ({new Date(acquisitionTimestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })})
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1 text-[10px] text-zinc-500">
+            <Clock className="w-3 h-3 text-zinc-400" />
+            <span>Fetched: {new Date(lastFetchedAt || freshnessTimestamp).toLocaleTimeString()}</span>
+            {onManualRefresh && (
+              <button
+                type="button"
+                onClick={onManualRefresh}
+                disabled={isRefreshing}
+                className="ml-1 text-eco-neon hover:underline inline-flex items-center gap-0.5"
+                title="Force refresh live satellite data"
+              >
+                <RotateCw className={`w-2.5 h-2.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <span>Refresh Live Data</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Prominent Stale Data Warning Banner if live fetch failed */}
+      {isStaleData && staleReason && (
+        <div className="p-3.5 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs font-mono flex items-start gap-2.5 shadow-sm">
+          <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
+          <div>
+            <span className="font-bold text-amber-300 block mb-0.5">
+              NOTICE: DISPLAYING PREVIOUSLY CACHED OBSERVATION
+            </span>
+            <span className="text-zinc-300">{staleReason}</span>
+          </div>
+        </div>
+      )}
 
       {/* Primary 4-Metric Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 font-mono">
@@ -172,22 +237,60 @@ export function LatestObservationCard({
         </div>
       </div>
 
-      {/* Phenology & Truth Footer */}
+      {/* Natural satellite revisit interval notice if acquisition date is older than 5 days */}
+      {daysOld > 5 && (
+        <div className="text-[11px] font-mono text-zinc-400 bg-white/[0.02] border border-white/5 rounded-xl px-3 py-2 flex items-center gap-2">
+          <Layers className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+          <span>
+            Observation from {acquisitionDate} ({daysOld} days ago). Sentinel-2 has a 5-day constellation revisit frequency; this is the newest cloud-screened pass available over this geographic boundary.
+          </span>
+        </div>
+      )}
+
+      {/* Phenology & Background Polling Footer */}
       <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-white/5 text-[11px] font-mono text-zinc-400">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-zinc-500">Source:</span>
           <span className="text-zinc-300 font-semibold">{satelliteSource}</span>
-          <span>&bull;</span>
-          <span className="text-zinc-500">Processed:</span>
-          <span>{new Date(freshnessTimestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+          {satelliteSceneId && (
+            <>
+              <span>&bull;</span>
+              <span className="text-zinc-500">Scene:</span>
+              <span className="text-zinc-400 max-w-[150px] truncate">{satelliteSceneId}</span>
+            </>
+          )}
         </div>
 
-        {cropSeasonContext && (
-          <div className="text-eco-neon flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Active Season: {cropSeasonContext.activeSeason} ({cropSeasonContext.cropStage})</span>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Background Refresh Status */}
+          <div className="flex items-center gap-1.5 text-zinc-400">
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                isPollingPaused
+                  ? 'bg-zinc-600'
+                  : isCheckingUpdates
+                  ? 'bg-cyan-400 animate-ping'
+                  : 'bg-emerald-400'
+              }`}
+            />
+            <span>
+              {isPollingPaused
+                ? 'Auto-sync paused (tab inactive)'
+                : isCheckingUpdates
+                ? 'Checking satellite feed...'
+                : lastCheckedAt
+                ? `Satellite verified: ${new Date(lastCheckedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
+                : 'Auto-sync active (15m)'}
+            </span>
           </div>
-        )}
+
+          {cropSeasonContext && (
+            <div className="text-eco-neon flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>{cropSeasonContext.activeSeason} ({cropSeasonContext.cropStage})</span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

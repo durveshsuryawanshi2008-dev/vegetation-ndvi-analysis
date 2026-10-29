@@ -129,37 +129,62 @@ export function classifyVci(vci: number | null): VciClassification {
  * Generates monthly temporal windows for current analysis and historical baselines.
  */
 function getTargetMonths() {
-  return [
-    { key: 'm_2024_05', monthNum: 5, year: 2024, label: 'May 2024', start: '2024-05-01', end: '2024-05-31' },
-    { key: 'm_2024_06', monthNum: 6, year: 2024, label: 'Jun 2024', start: '2024-06-01', end: '2024-06-30' },
-    { key: 'm_2024_07', monthNum: 7, year: 2024, label: 'Jul 2024', start: '2024-07-01', end: '2024-07-31' },
-    { key: 'm_2024_08', monthNum: 8, year: 2024, label: 'Aug 2024', start: '2024-08-01', end: '2024-08-31' },
-    { key: 'm_2024_09', monthNum: 9, year: 2024, label: 'Sep 2024', start: '2024-09-01', end: '2024-09-30' },
-    { key: 'm_2024_10', monthNum: 10, year: 2024, label: 'Oct 2024', start: '2024-10-01', end: '2024-10-31' },
-    { key: 'm_2024_11', monthNum: 11, year: 2024, label: 'Nov 2024', start: '2024-11-01', end: '2024-11-30' },
-    { key: 'm_2024_12', monthNum: 12, year: 2024, label: 'Dec 2024', start: '2024-12-01', end: '2024-12-31' },
-    { key: 'm_2025_01', monthNum: 1, year: 2025, label: 'Jan 2025', start: '2025-01-01', end: '2025-01-31' },
-  ];
+  const now = new Date();
+  const list = [];
+  for (let i = 8; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const yr = d.getFullYear();
+    const moNum = d.getMonth() + 1;
+    const mo = String(moNum).padStart(2, '0');
+    const label = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    const start = `${yr}-${mo}-01`;
+    let end: string;
+    if (i === 0) {
+      end = now.toISOString().split('T')[0];
+    } else {
+      const lastDay = new Date(yr, moNum, 0).getDate();
+      end = `${yr}-${mo}-${String(lastDay).padStart(2, '0')}`;
+    }
+    list.push({
+      key: `m_${yr}_${mo}`,
+      monthNum: moNum,
+      year: yr,
+      label,
+      start,
+      end,
+    });
+  }
+  return list;
 }
 
 /**
  * Generates rolling weekly temporal windows (12 weeks for 4w, 8w, 12w slope analysis).
  */
 function getTargetWeeks() {
-  return [
-    { key: 'w_1', index: 1, label: 'Nov 3 - 9', start: '2024-11-03', end: '2024-11-10' },
-    { key: 'w_2', index: 2, label: 'Nov 10 - 16', start: '2024-11-10', end: '2024-11-17' },
-    { key: 'w_3', index: 3, label: 'Nov 17 - 23', start: '2024-11-17', end: '2024-11-24' },
-    { key: 'w_4', index: 4, label: 'Nov 24 - 30', start: '2024-11-24', end: '2024-12-01' },
-    { key: 'w_5', index: 5, label: 'Dec 1 - 7', start: '2024-12-01', end: '2024-12-08' },
-    { key: 'w_6', index: 6, label: 'Dec 8 - 14', start: '2024-12-08', end: '2024-12-15' },
-    { key: 'w_7', index: 7, label: 'Dec 15 - 21', start: '2024-12-15', end: '2024-12-22' },
-    { key: 'w_8', index: 8, label: 'Dec 22 - 28', start: '2024-12-22', end: '2024-12-29' },
-    { key: 'w_9', index: 9, label: 'Dec 29 - Jan 4', start: '2024-12-29', end: '2025-01-05' },
-    { key: 'w_10', index: 10, label: 'Jan 5 - 11', start: '2025-01-05', end: '2025-01-12' },
-    { key: 'w_11', index: 11, label: 'Jan 12 - 18', start: '2025-01-12', end: '2025-01-19' },
-    { key: 'w_12', index: 12, label: 'Jan 19 - 26', start: '2025-01-19', end: '2025-01-26' },
-  ];
+  const now = new Date();
+  const list = [];
+  for (let i = 11; i >= 0; i--) {
+    const endDays = i * 7;
+    const startDays = (i + 1) * 7;
+    const sDate = new Date(now.getTime() - startDays * 86400000);
+    const eDate = new Date(now.getTime() - endDays * 86400000);
+    const sStr = sDate.toISOString().split('T')[0];
+    const eStr = eDate.toISOString().split('T')[0];
+    const sMo = sDate.toLocaleDateString('en-US', { month: 'short' });
+    const eMo = eDate.toLocaleDateString('en-US', { month: 'short' });
+    const sD = sDate.getDate();
+    const eD = eDate.getDate();
+    const label = sMo === eMo ? `${sMo} ${sD} - ${eD}` : `${sMo} ${sD} - ${eMo} ${eD}`;
+    const idx = 12 - i;
+    list.push({
+      key: `w_${idx}`,
+      index: idx,
+      label,
+      start: sStr,
+      end: eStr,
+    });
+  }
+  return list;
 }
 
 /**
@@ -218,7 +243,9 @@ export async function computeAgriculturalDroughtSystem(
   const scale = areaKm2 > 6000 ? 500 : areaKm2 > 2000 ? 300 : 150;
   const months = getTargetMonths();
   const weeks = getTargetWeeks();
-  const baselineYears = [2020, 2021, 2022, 2023, 2024];
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const baselineYears = [currentYear - 5, currentYear - 4, currentYear - 3, currentYear - 2, currentYear - 1];
 
   const entries: Record<string, any> = {};
 
@@ -233,8 +260,8 @@ export async function computeAgriculturalDroughtSystem(
     entries[`s2_${w.key}`] = buildS2PeriodComputation(geometry, w.start, w.end, scale);
   }
 
-  // 3. Historical Baseline (same months across 2020-2024)
-  // To avoid hitting GEE graph limits, sample key representative months (May, Jul, Sep, Nov, Jan) across baseline years
+  // 3. Historical Baseline (same months across baseline years)
+  // To avoid hitting GEE graph limits, sample key representative months across baseline years
   const sampleMonthNumbers = [5, 6, 7, 8, 9, 10, 11, 12, 1];
   for (const mNum of sampleMonthNumbers) {
     const padM = mNum.toString().padStart(2, '0');
@@ -247,8 +274,10 @@ export async function computeAgriculturalDroughtSystem(
     }
   }
 
-  // 4. Recent MODIS Land Surface Temperature
-  entries['modis_lst'] = buildModisLstComputation(geometry, '2024-11-01', '2025-01-26');
+  // 4. Recent MODIS Land Surface Temperature (rolling 90-day window up to today)
+  const lstStart = new Date(now.getTime() - 90 * 86400000).toISOString().split('T')[0];
+  const lstEnd = now.toISOString().split('T')[0];
+  entries['modis_lst'] = buildModisLstComputation(geometry, lstStart, lstEnd);
 
   // Unified execution
   let results: Record<string, any> = {};
@@ -469,7 +498,8 @@ export async function computeAgriculturalDroughtSystem(
   ];
 
   // --- Process Yearly Series ---
-  const yearlySeries: YearlyNdviResult[] = [2021, 2022, 2023, 2024, 2025].map((year) => {
+  const rollingYears = [currentYear - 4, currentYear - 3, currentYear - 2, currentYear - 1, currentYear];
+  const yearlySeries: YearlyNdviResult[] = rollingYears.map((year) => {
     // Generate annual stats
     return {
       year,
@@ -610,7 +640,7 @@ export async function computeAgriculturalDroughtSystem(
 
   // --- Compile Multi-Year Monthly Comparison Matrix ---
   const multiYearComparison: MultiYearComparison = {
-    years: [...baselineYears, 2025],
+    years: [...baselineYears, currentYear],
     months: sampleMonthNumbers.map((mNum) => {
       const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const mName = monthNames[mNum] || `M${mNum}`;

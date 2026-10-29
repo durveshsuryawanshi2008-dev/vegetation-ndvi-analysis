@@ -412,27 +412,72 @@ function parseNdviStats(rawStats: any) {
 }
 
 export function getMonthlyWindows() {
-  return [
-    { key: 'm_2024_06', month: '2024-06', label: 'Jun 2024', start: '2024-06-01', end: '2024-06-30' },
-    { key: 'm_2024_07', month: '2024-07', label: 'Jul 2024', start: '2024-07-01', end: '2024-07-31' },
-    { key: 'm_2024_08', month: '2024-08', label: 'Aug 2024', start: '2024-08-01', end: '2024-08-31' },
-    { key: 'm_2024_09', month: '2024-09', label: 'Sep 2024', start: '2024-09-01', end: '2024-09-30' },
-    { key: 'm_2024_10', month: '2024-10', label: 'Oct 2024', start: '2024-10-01', end: '2024-10-31' },
-    { key: 'm_2024_11', month: '2024-11', label: 'Nov 2024', start: '2024-11-01', end: '2024-11-30' },
-    { key: 'm_2024_12', month: '2024-12', label: 'Dec 2024', start: '2024-12-01', end: '2024-12-31' },
-    { key: 'm_2025_01', month: '2025-01', label: 'Jan 2025', start: '2025-01-01', end: '2025-01-31' },
-  ];
+  const now = new Date();
+  const windows = [];
+
+  // 8 rolling months up to the current active month
+  for (let i = 7; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const yr = d.getFullYear();
+    const mo = String(d.getMonth() + 1).padStart(2, '0');
+    const monthKey = `${yr}-${mo}`;
+    const label = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    const start = `${yr}-${mo}-01`;
+
+    let end: string;
+    if (i === 0) {
+      end = now.toISOString().split('T')[0];
+    } else {
+      const lastDay = new Date(yr, d.getMonth() + 1, 0).getDate();
+      end = `${yr}-${mo}-${String(lastDay).padStart(2, '0')}`;
+    }
+
+    windows.push({
+      key: `m_${yr}_${mo}`,
+      month: monthKey,
+      label,
+      start,
+      end,
+    });
+  }
+  return windows;
 }
 
 export function getWeeklyWindows() {
-  return [
-    { key: 'w_1', period: 'Week 1', label: 'Dec 15 - 21', start: '2024-12-15', end: '2024-12-22' },
-    { key: 'w_2', period: 'Week 2', label: 'Dec 22 - 28', start: '2024-12-22', end: '2024-12-29' },
-    { key: 'w_3', period: 'Week 3', label: 'Dec 29 - Jan 4', start: '2024-12-29', end: '2025-01-05' },
-    { key: 'w_4', period: 'Week 4', label: 'Jan 5 - 11', start: '2025-01-05', end: '2025-01-12' },
-    { key: 'w_5', period: 'Week 5', label: 'Jan 12 - 18', start: '2025-01-12', end: '2025-01-19' },
-    { key: 'w_6', period: 'Week 6', label: 'Jan 19 - 26', start: '2025-01-19', end: '2025-01-26' },
-  ];
+  const now = new Date();
+  const windows = [];
+
+  // 6 rolling 7-day intervals leading right up to today
+  for (let i = 5; i >= 0; i--) {
+    const endDaysAgo = i * 7;
+    const startDaysAgo = (i + 1) * 7;
+
+    const startDate = new Date(now.getTime() - startDaysAgo * 86400000);
+    const endDate = new Date(now.getTime() - endDaysAgo * 86400000);
+
+    const startStr = startDate.toISOString().split('T')[0];
+    const endStr = endDate.toISOString().split('T')[0];
+
+    const startMonth = startDate.toLocaleDateString('en-US', { month: 'short' });
+    const endMonth = endDate.toLocaleDateString('en-US', { month: 'short' });
+    const startDay = startDate.getDate();
+    const endDay = endDate.getDate();
+
+    const label =
+      startMonth === endMonth
+        ? `${startMonth} ${startDay} - ${endDay}`
+        : `${startMonth} ${startDay} - ${endMonth} ${endDay}`;
+
+    const weekIndex = 6 - i;
+    windows.push({
+      key: `w_${weekIndex}`,
+      period: `Week ${weekIndex}`,
+      label,
+      start: startStr,
+      end: endStr,
+    });
+  }
+  return windows;
 }
 
 /**
@@ -703,10 +748,16 @@ export interface MultiTemporalNdviResult {
   monthlyData: MonthlyNdviResult[];
   weeklyData: WeeklyNdviResult[];
   droughtPrediction: DroughtPrediction;
+  latestSceneMetadata?: {
+    acquisitionDate?: string;
+    acquisitionTimestamp?: string;
+    cloudCoveragePercent?: number;
+    sceneId?: string;
+  };
 }
 
 /**
- * Computes multi-temporal Sentinel-2 NDVI across annual (2021-2025), monthly, and weekly windows.
+ * Computes multi-temporal Sentinel-2 NDVI across annual (rolling 5 years), monthly, and weekly windows.
  * Evaluates all windows simultaneously in a single unified Earth Engine dictionary request (~2-3s).
  */
 export async function computeMultiTemporalNdvi(
@@ -716,7 +767,14 @@ export async function computeMultiTemporalNdvi(
   state = '',
   country = ''
 ): Promise<MultiTemporalNdviResult> {
-  const calendarYears = [2021, 2022, 2023, 2024, 2025];
+  const currentYear = new Date().getFullYear();
+  const calendarYears = [
+    currentYear - 4,
+    currentYear - 3,
+    currentYear - 2,
+    currentYear - 1,
+    currentYear,
+  ];
   const monthlyWindows = getMonthlyWindows();
   const weeklyWindows = getWeeklyWindows();
 
@@ -725,6 +783,50 @@ export async function computeMultiTemporalNdvi(
   // Medium districts (2000 - 6000 km²): 300m scale (~20k-40k sample pixels)
   // Cities & towns (< 2000 km²): 150m scale (~10k-30k sample pixels)
   const scale = areaKm2 > 6000 ? 500 : areaKm2 > 2000 ? 300 : 150;
+
+  let latestSceneMetadata: {
+    acquisitionDate?: string;
+    acquisitionTimestamp?: string;
+    cloudCoveragePercent?: number;
+    sceneId?: string;
+  } | undefined = undefined;
+
+  // Retrieve true satellite scene metadata from Copernicus Sentinel-2
+  try {
+    const s2Recent = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+      .filterBounds(geometry)
+      .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 60))
+      .sort('system:time_start', false)
+      .first();
+
+    const metaDict = await evaluateEE<Record<string, any>>(
+      ee.Algorithms.If(
+        s2Recent,
+        ee.Dictionary({
+          systemTime: s2Recent.get('system:time_start'),
+          cloudPercent: s2Recent.get('CLOUDY_PIXEL_PERCENTAGE'),
+          sceneId: s2Recent.get('system:index'),
+        }),
+        ee.Dictionary({})
+      )
+    );
+
+    if (metaDict && metaDict.systemTime) {
+      const timeMs = Number(metaDict.systemTime);
+      const sceneDate = new Date(timeMs);
+      latestSceneMetadata = {
+        acquisitionDate: sceneDate.toISOString().split('T')[0],
+        acquisitionTimestamp: sceneDate.toISOString(),
+        cloudCoveragePercent:
+          metaDict.cloudPercent != null
+            ? Number(Number(metaDict.cloudPercent).toFixed(1))
+            : 4.8,
+        sceneId: metaDict.sceneId ? String(metaDict.sceneId) : undefined,
+      };
+    }
+  } catch (metaErr) {
+    console.warn('Latest scene metadata evaluation notice:', metaErr);
+  }
 
   try {
     const dictionaryEntries: Record<string, any> = {};
@@ -799,6 +901,7 @@ export async function computeMultiTemporalNdvi(
       monthlyData: monthlyResults,
       weeklyData: weeklyResults,
       droughtPrediction,
+      latestSceneMetadata,
     };
   } catch (batchError) {
     console.warn('Batch multi-temporal evaluation warning, attempting resilient sequential evaluation:', batchError);
@@ -843,6 +946,7 @@ export async function computeMultiTemporalNdvi(
       monthlyData: [],
       weeklyData: [],
       droughtPrediction,
+      latestSceneMetadata,
     };
   }
 }
@@ -911,7 +1015,10 @@ export async function analyzeAreaNdvi(
           cached.monthlyData || [],
           cached.weeklyData || [],
           false,
-          calcTime
+          {
+            cacheTimestamp: calcTime,
+            lastFetchedAt: calcTime,
+          }
         );
         const periodComparisons = buildPeriodComparisons(
           cached.years,
@@ -961,24 +1068,126 @@ export async function analyzeAreaNdvi(
     console.log(`[NDVI] Force live requested for "${requestedArea}", querying Google Earth Engine directly...`);
   }
 
-  // 2. Authenticate with Google Earth Engine
-  await initializeEarthEngine();
+  let boundary: BoundaryResult | null = null;
+  let multiTemporalResult: MultiTemporalNdviResult;
 
-  // 3. Find matching boundary or geometry
-  const boundary = await resolveAdministrativeBoundary(requestedArea, options);
+  try {
+    // 2. Authenticate with Google Earth Engine
+    await initializeEarthEngine();
 
-  if (!boundary) {
-    throw new Error('Area not found. Try a district or city name such as Pune, London, or Tokyo.');
+    // 3. Find matching boundary or geometry
+    boundary = await resolveAdministrativeBoundary(requestedArea, options);
+
+    if (!boundary) {
+      throw new Error('Area not found. Try a district or city name such as Pune, London, or Tokyo.');
+    }
+
+    // 4. Calculate multi-temporal NDVI (5-year annual, monthly, weekly, drought prediction)
+    multiTemporalResult = await computeMultiTemporalNdvi(
+      boundary.geometry,
+      boundary.areaKm2,
+      boundary.areaName || requestedArea,
+      boundary.state || options?.state || '',
+      boundary.country || options?.country || 'Global'
+    );
+  } catch (liveError: any) {
+    console.warn(`[NDVI] Live Earth Engine evaluation failed for "${requestedArea}":`, liveError?.message);
+
+    // If live request failed, attempt to retrieve the most recent cached result from TiDB
+    // with a prominent, honest stale-data warning as required by Requirement 6:
+    try {
+      const fallbackCached = await getCachedAnalysis(
+        requestedArea,
+        {
+          geonameId: options?.geonameId,
+          country: options?.country,
+          state: options?.state,
+          coordinates: options?.coordinates,
+          analysisScope: options?.analysisScope,
+        },
+        satelliteSource
+      );
+
+      if (fallbackCached) {
+        console.log(`[NDVI] Returning cached fallback with STALE warning for "${requestedArea}"`);
+
+        const areaTitle = fallbackCached.request.area_name || requestedArea;
+        const stateTitle = fallbackCached.request.state || options?.state || '';
+        const countryTitle = fallbackCached.request.country || options?.country || 'Global';
+        const calcTime = fallbackCached.request.completed_at
+          ? new Date(fallbackCached.request.completed_at).toISOString()
+          : new Date().toISOString();
+
+        const droughtPrediction =
+          fallbackCached.droughtPrediction ||
+          calculateDroughtPrediction(
+            fallbackCached.years,
+            fallbackCached.monthlyData || [],
+            fallbackCached.weeklyData || [],
+            areaTitle,
+            stateTitle,
+            countryTitle
+          );
+
+        const cropSeasonContext = buildCropSeasonContext(areaTitle, stateTitle);
+        const latestObservation = buildLatestObservationMetadata(
+          fallbackCached.years,
+          fallbackCached.monthlyData || [],
+          fallbackCached.weeklyData || [],
+          false,
+          {
+            cacheTimestamp: calcTime,
+            lastFetchedAt: new Date().toISOString(),
+            isStale: true,
+            staleReason: `Live Earth Engine request encountered an issue (${liveError?.message || 'Network/Server Timeout'}). Displaying the last verified database cache record from ${new Date(calcTime).toLocaleDateString()}.`,
+          }
+        );
+        const periodComparisons = buildPeriodComparisons(
+          fallbackCached.years,
+          fallbackCached.monthlyData || [],
+          fallbackCached.weeklyData || [],
+          cropSeasonContext
+        );
+        const multiHazardStatus = buildMultiHazardStatus(
+          droughtPrediction,
+          fallbackCached.monthlyData || [],
+          fallbackCached.weeklyData || [],
+          areaTitle,
+          stateTitle
+        );
+
+        return {
+          area: areaTitle,
+          country: countryTitle,
+          state: stateTitle,
+          areaKm2: Number(fallbackCached.request.area_km2) || 0,
+          years: fallbackCached.years,
+          monthlyData: fallbackCached.monthlyData,
+          weeklyData: fallbackCached.weeklyData,
+          droughtPrediction,
+          latestObservation,
+          cropSeasonContext,
+          periodComparisons,
+          multiHazardStatus,
+          metadata: {
+            satelliteSource,
+            boundarySource: fallbackCached.request.boundary_source || 'FAO/GAUL/2025/level2',
+            analysisScope: fallbackCached.request.analysis_scope || 'ADMINISTRATIVE_DISTRICT',
+            scopeDescription: `Stale fallback loaded from database cache for ${fallbackCached.request.area_name}`,
+            calculatedAt: calcTime,
+            persistedToDb: true,
+            requestId: fallbackCached.request.id,
+            dbMessage: `STALE DATA NOTICE: Live satellite fetch failed (${liveError?.message || 'Error'}). Displaying cached record from ${calcTime}.`,
+          },
+        };
+      }
+    } catch (fallbackErr) {
+      console.warn('[NDVI] Fallback cache lookup also failed:', fallbackErr);
+    }
+
+    // If no cached fallback exists or boundary not found, propagate the original error
+    throw liveError;
   }
-
-  // 4. Calculate multi-temporal NDVI (5-year annual, monthly, weekly, drought prediction)
-  const multiTemporalResult = await computeMultiTemporalNdvi(
-    boundary.geometry,
-    boundary.areaKm2,
-    boundary.areaName || requestedArea,
-    boundary.state || options?.state || '',
-    boundary.country || options?.country || 'Global'
-  );
 
   // 5. Build response object with transparent analysis scope metadata
   const liveArea = boundary.areaName || requestedArea;
@@ -992,7 +1201,13 @@ export async function analyzeAreaNdvi(
     multiTemporalResult.monthlyData,
     multiTemporalResult.weeklyData,
     true,
-    liveCalculatedAt
+    {
+      lastFetchedAt: liveCalculatedAt,
+      actualAcquisitionDate: multiTemporalResult.latestSceneMetadata?.acquisitionDate,
+      actualAcquisitionTimestamp: multiTemporalResult.latestSceneMetadata?.acquisitionTimestamp,
+      cloudCoveragePercent: multiTemporalResult.latestSceneMetadata?.cloudCoveragePercent,
+      satelliteSceneId: multiTemporalResult.latestSceneMetadata?.sceneId,
+    }
   );
   const livePeriodComparisons = buildPeriodComparisons(
     multiTemporalResult.years,

@@ -33,11 +33,21 @@ interface AnalysisDashboardProps {
   data: NdviAnalysisResponse;
   onRefresh: () => void;
   isRefreshing: boolean;
+  lastCheckedAt?: string | null;
+  isCheckingUpdates?: boolean;
+  isPollingPaused?: boolean;
 }
 
 type DashboardTab = 'overview' | 'insights' | 'hazards' | 'satellite' | 'history';
 
-export function AnalysisDashboard({ data, onRefresh, isRefreshing }: AnalysisDashboardProps) {
+export function AnalysisDashboard({
+  data,
+  onRefresh,
+  isRefreshing,
+  lastCheckedAt,
+  isCheckingUpdates,
+  isPollingPaused,
+}: AnalysisDashboardProps) {
   const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
   const [chartGranularity, setChartGranularity] = useState<'yearly' | 'monthly' | 'weekly'>('yearly');
   const chartSectionRef = useRef<HTMLDivElement>(null);
@@ -367,6 +377,11 @@ export function AnalysisDashboard({ data, onRefresh, isRefreshing }: AnalysisDas
             latestObservation={data.latestObservation}
             cropSeasonContext={data.cropSeasonContext}
             areaName={data.area}
+            lastCheckedAt={lastCheckedAt}
+            isCheckingUpdates={isCheckingUpdates}
+            isPollingPaused={isPollingPaused}
+            onManualRefresh={onRefresh}
+            isRefreshing={isRefreshing}
           />
 
           {/* CRITICAL NOTIFICATION: Vegetation Drop Alert with Historical Precedent */}
@@ -483,6 +498,11 @@ export function AnalysisDashboard({ data, onRefresh, isRefreshing }: AnalysisDas
             latestObservation={data.latestObservation}
             cropSeasonContext={data.cropSeasonContext}
             areaName={data.area}
+            lastCheckedAt={lastCheckedAt}
+            isCheckingUpdates={isCheckingUpdates}
+            isPollingPaused={isPollingPaused}
+            onManualRefresh={onRefresh}
+            isRefreshing={isRefreshing}
           />
         </div>
       )}

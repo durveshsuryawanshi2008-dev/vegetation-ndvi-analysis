@@ -228,9 +228,19 @@ export interface WeeklyNdviResult {
   vegetationStatus: VegetationStatus;
 }
 
+export type DataFreshnessStatus =
+  | 'LIVE-FETCHED'
+  | 'CACHED'
+  | 'STALE'
+  | 'UNAVAILABLE'
+  | 'Live Earth Engine Stream'
+  | 'Database Cache Record'
+  | 'Historical Archive';
+
 export interface LatestObservationMetadata {
   latestNdvi: number | null;
   acquisitionDate: string;
+  acquisitionTimestamp?: string;
   satelliteSource: string;
   cloudCoveragePercent: number;
   validPixelCoveragePercent: number;
@@ -238,9 +248,14 @@ export interface LatestObservationMetadata {
   previousObservationDate: string | null;
   absoluteChange: number | null;
   percentChange: number | null;
-  dataFreshness: 'Live Earth Engine Stream' | 'Database Cache Record' | 'Historical Archive';
+  dataFreshness: DataFreshnessStatus;
   freshnessTimestamp: string;
+  lastFetchedAt?: string;
   isCached: boolean;
+  isStale?: boolean;
+  staleReason?: string;
+  hasNewerImagery?: boolean;
+  satelliteSceneId?: string;
   resolutionMeters: number;
 }
 
