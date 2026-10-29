@@ -22,13 +22,113 @@ export interface MonthlyNdviResult {
   vegetationStatus: VegetationStatus;
 }
 
-export interface WeeklyNdviResult {
-  period: string; // e.g. "Week 1", "Week 2"
-  label: string; // e.g. "Oct 1 - 7"
+export type VciClassification =
+  | 'Good / Wet'
+  | 'Normal'
+  | 'Mild drought stress'
+  | 'Moderate drought'
+  | 'Severe drought'
+  | 'Extreme drought';
+
+export type DroughtRiskCategory =
+  | 'No drought'
+  | 'Mild drought risk'
+  | 'Moderate drought risk'
+  | 'High drought risk'
+  | 'Severe drought risk';
+
+export interface WeeklyNdviSeries {
+  weekIndex: number;
+  label: string; // e.g. "Week 1 (Oct 1 - 7)"
   startDate: string;
   endDate: string;
-  avgNdvi: number | null;
+  currentNdvi: number | null;
+  historicalAvgNdvi: number | null;
+  ndviMin: number | null;
+  ndviMax: number | null;
+  vci: number | null;
+  anomaly: number | null; // current - historical avg
+  anomalyPercent: number | null; // (current - avg) / avg * 100
   vegetationStatus: VegetationStatus;
+}
+
+export interface MonthlyNdviSeries {
+  month: string; // e.g. "2024-10"
+  label: string; // e.g. "Oct 2024"
+  currentNdvi: number | null;
+  previousMonthNdvi: number | null;
+  sameMonthLastYearNdvi: number | null;
+  fiveYearAvgNdvi: number | null;
+  ndviMin: number | null;
+  ndviMax: number | null;
+  vci: number | null;
+  anomaly: number | null;
+  anomalyPercent: number | null;
+  rainfallMm: number | null;
+  historicalAvgRainfallMm: number | null;
+  rainfallDeficitPercent: number | null;
+  vegetationStatus: VegetationStatus;
+}
+
+export interface SeasonalNdviSeries {
+  season: string; // e.g. "Kharif 2024", "Rabi 2024-25", "Summer 2024"
+  label: string;
+  avgNdvi: number | null;
+  rainfallMm: number | null;
+  rainfallDeficitPercent: number | null;
+  vegetationStatus: VegetationStatus;
+}
+
+export interface DroughtPredictionEngineResult {
+  riskScore: number; // 0 - 100
+  riskCategory: DroughtRiskCategory;
+  scoreBreakdown: {
+    vciScore: number; // 40% weight
+    ndviDeclineScore: number; // 25% weight
+    rainfallDeficitScore: number; // 25% weight
+    temperatureStressScore: number; // 10% weight
+  };
+  currentVci: number;
+  vciClassification: VciClassification;
+  consecutiveDeclineWeeks: number;
+  recentNdviChangeRate: number; // % change over recent 4-8 weeks
+  rainfallDeficit3Month: number; // % deficit over last 1-3 months
+  landSurfaceTempC: number;
+  temperatureAnomalyC: number;
+  explainableSummary: string;
+  vegetationStressWarning: string | null;
+  agriculturalAdvisories: string[];
+}
+
+export interface DroughtMonitorResponse {
+  area: string;
+  state: string;
+  country: string;
+  areaKm2: number;
+  coordinates: {
+    latitude: number;
+    longitude: number;
+  };
+  currentNdvi: number | null;
+  currentVci: number | null;
+  currentAnomaly: number | null;
+  currentAnomalyPercent: number | null;
+  currentRainfallDeficit: number | null;
+  prediction: DroughtPredictionEngineResult;
+  weeklySeries: WeeklyNdviSeries[];
+  monthlySeries: MonthlyNdviSeries[];
+  seasonalSeries: SeasonalNdviSeries[];
+  yearlySeries: YearlyNdviResult[];
+  metadata?: {
+    satelliteSource: string;
+    precipitationSource: string;
+    temperatureSource: string;
+    boundarySource: string;
+    analysisScope?: string;
+    calculatedAt: string;
+    persistedToDb?: boolean;
+    cached?: boolean;
+  };
 }
 
 export type DroughtSeverity =
@@ -57,6 +157,15 @@ export interface DroughtPrediction {
     differenceFromWorst: number; // % above/below worst drought
     isApproachingWorst: boolean;
   };
+}
+
+export interface WeeklyNdviResult {
+  period: string;
+  label: string;
+  startDate: string;
+  endDate: string;
+  avgNdvi: number | null;
+  vegetationStatus: VegetationStatus;
 }
 
 export interface NdviAnalysisResponse {

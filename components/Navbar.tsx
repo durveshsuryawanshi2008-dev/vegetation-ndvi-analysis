@@ -34,6 +34,7 @@ export function Navbar() {
 
   const navLinks = [
     { name: 'Analysis', href: '/' },
+    { name: 'Drought Monitor', href: '/drought' },
     { name: 'Reports', href: '/reports' },
     { name: 'Methodology', href: '/about' },
   ];
