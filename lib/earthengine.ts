@@ -1,4 +1,12 @@
 import ee from '@google/earthengine';
+import dns from 'node:dns';
+
+// Force Node.js DNS to prefer IPv4 first. Prevents 'getaddrinfo ENOTFOUND' on Google APIs during network/DNS fluctuations.
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch {
+  // Ignored in runtimes without setDefaultResultOrder
+}
 
 let isInitialized = false;
 let initPromise: Promise<void> | null = null;

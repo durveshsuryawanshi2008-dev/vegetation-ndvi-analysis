@@ -1,6 +1,14 @@
 import mysql, { Pool, PoolOptions } from 'mysql2/promise';
 import crypto from 'crypto';
+import dns from 'node:dns';
 import { YearlyNdviResult, DbReport } from './types';
+
+// Force Node.js DNS to prefer IPv4 first. Prevents 'getaddrinfo ENOTFOUND' on macOS/mobile hotspot dual-stack networks.
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch {
+  // Ignored in runtimes without setDefaultResultOrder
+}
 
 let pool: Pool | null = null;
 let tablesInitialized = false;

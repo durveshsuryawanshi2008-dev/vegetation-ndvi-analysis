@@ -86,6 +86,18 @@ export async function POST(req: NextRequest) {
     const errorMessage = error?.message || 'An unexpected error occurred during satellite NDVI analysis.';
     console.error('API /api/ndvi error:', error);
 
+    // If network / DNS resolution fails (e.g. offline, Wi-Fi disconnected, DNS dropped)
+    if (errorMessage.includes('ENOTFOUND') || errorMessage.includes('getaddrinfo') || errorMessage.includes('ETIMEDOUT') || errorMessage.includes('ECONNREFUSED')) {
+      return NextResponse.json(
+        {
+          error: 'Network connectivity error: Could not reach Google Earth Engine or TiDB Cloud (ENOTFOUND). Please check your internet connection or restart the dev server.',
+          code: 'NETWORK_DNS_ERROR',
+          details: errorMessage,
+        },
+        { status: 503 }
+      );
+    }
+
     // If area boundary is not found
     if (errorMessage.includes('Area not found') || errorMessage.includes('boundary not found')) {
       return NextResponse.json(
