@@ -79,6 +79,7 @@ export async function POST(req: NextRequest) {
       country: typeof body?.country === 'string' ? body.country.trim() : undefined,
       countryCode: typeof body?.countryCode === 'string' ? body.countryCode.trim() : undefined,
       analysisScope: body?.analysisScope,
+      forceLive: body?.forceLive !== undefined ? Boolean(body.forceLive) : true,
     });
 
     return NextResponse.json(result, { status: 200 });

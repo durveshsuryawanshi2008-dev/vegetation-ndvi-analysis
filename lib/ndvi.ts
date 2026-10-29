@@ -79,6 +79,7 @@ export interface AreaAnalysisOptions {
   country?: string;
   countryCode?: string;
   analysisScope?: AnalysisScopeType;
+  forceLive?: boolean;
 }
 
 /**
@@ -861,62 +862,66 @@ export async function analyzeAreaNdvi(
   const requestedArea = targetArea.trim();
   const satelliteSource = 'COPERNICUS/S2_SR_HARMONIZED';
 
-  // 1. Check TiDB cache BEFORE calling Google Earth Engine
-  try {
-    const cached = await getCachedAnalysis(
-      requestedArea,
-      {
-        geonameId: options?.geonameId,
-        country: options?.country,
-        state: options?.state,
-        coordinates: options?.coordinates,
-        analysisScope: options?.analysisScope,
-      },
-      satelliteSource
-    );
-
-    if (cached) {
-      console.log(`[NDVI] Cache hit for "${requestedArea}"`);
-
-      // Ensure droughtPrediction is present; calculate on the fly if cached before drought feature
-      const droughtPrediction =
-        cached.droughtPrediction ||
-        calculateDroughtPrediction(
-          cached.years,
-          cached.monthlyData || [],
-          cached.weeklyData || [],
-          cached.request.area_name || requestedArea,
-          cached.request.state || options?.state || '',
-          cached.request.country || options?.country || 'Global'
-        );
-
-      return {
-        area: cached.request.area_name || requestedArea,
-        country: cached.request.country || options?.country || 'Global',
-        state: cached.request.state || options?.state || '',
-        areaKm2: Number(cached.request.area_km2) || 0,
-        years: cached.years,
-        monthlyData: cached.monthlyData,
-        weeklyData: cached.weeklyData,
-        droughtPrediction,
-        metadata: {
-          satelliteSource,
-          boundarySource: cached.request.boundary_source || 'FAO/GAUL/2025/level2',
-          analysisScope: cached.request.analysis_scope || 'ADMINISTRATIVE_DISTRICT',
-          scopeDescription: `Loaded from cache for ${cached.request.area_name} (${cached.request.country})`,
-          calculatedAt: cached.request.completed_at
-            ? new Date(cached.request.completed_at).toISOString()
-            : new Date().toISOString(),
-          persistedToDb: true,
-          requestId: cached.request.id,
-          dbMessage: 'Returned from database cache; satellite recalculation was skipped.',
+  // 1. Check TiDB cache BEFORE calling Google Earth Engine (unless live calculation is requested)
+  if (!options?.forceLive) {
+    try {
+      const cached = await getCachedAnalysis(
+        requestedArea,
+        {
+          geonameId: options?.geonameId,
+          country: options?.country,
+          state: options?.state,
+          coordinates: options?.coordinates,
+          analysisScope: options?.analysisScope,
         },
-      };
-    }
+        satelliteSource
+      );
 
-    console.log(`[NDVI] Cache miss for "${requestedArea}"`);
-  } catch (cacheError) {
-    console.warn('[NDVI] Cache lookup warning; continuing with Earth Engine:', cacheError);
+      if (cached) {
+        console.log(`[NDVI] Cache hit for "${requestedArea}"`);
+
+        // Ensure droughtPrediction is present; calculate on the fly if cached before drought feature
+        const droughtPrediction =
+          cached.droughtPrediction ||
+          calculateDroughtPrediction(
+            cached.years,
+            cached.monthlyData || [],
+            cached.weeklyData || [],
+            cached.request.area_name || requestedArea,
+            cached.request.state || options?.state || '',
+            cached.request.country || options?.country || 'Global'
+          );
+
+        return {
+          area: cached.request.area_name || requestedArea,
+          country: cached.request.country || options?.country || 'Global',
+          state: cached.request.state || options?.state || '',
+          areaKm2: Number(cached.request.area_km2) || 0,
+          years: cached.years,
+          monthlyData: cached.monthlyData,
+          weeklyData: cached.weeklyData,
+          droughtPrediction,
+          metadata: {
+            satelliteSource,
+            boundarySource: cached.request.boundary_source || 'FAO/GAUL/2025/level2',
+            analysisScope: cached.request.analysis_scope || 'ADMINISTRATIVE_DISTRICT',
+            scopeDescription: `Loaded from cache for ${cached.request.area_name} (${cached.request.country})`,
+            calculatedAt: cached.request.completed_at
+              ? new Date(cached.request.completed_at).toISOString()
+              : new Date().toISOString(),
+            persistedToDb: true,
+            requestId: cached.request.id,
+            dbMessage: 'Returned from database cache; satellite recalculation was skipped.',
+          },
+        };
+      }
+
+      console.log(`[NDVI] Cache miss for "${requestedArea}"`);
+    } catch (cacheError) {
+      console.warn('[NDVI] Cache lookup warning; continuing with Earth Engine:', cacheError);
+    }
+  } else {
+    console.log(`[NDVI] Force live requested for "${requestedArea}", querying Google Earth Engine directly...`);
   }
 
   // 2. Authenticate with Google Earth Engine

@@ -5,6 +5,7 @@ import { NdviAnalysisResponse } from '@/lib/types';
 import { MetricsGrid } from './MetricsGrid';
 import { DroughtPredictor } from './DroughtPredictor';
 import { DroughtDropAlert } from './DroughtDropAlert';
+import { MonthlyComparisonVerdict } from './MonthlyComparisonVerdict';
 import { ClimateDisasterPredictor } from './ClimateDisasterPredictor';
 import { NdviChart } from './NdviChart';
 import { YearlyTable } from './YearlyTable';
@@ -119,6 +120,15 @@ export function AnalysisDashboard({ data, onRefresh, isRefreshing }: AnalysisDas
       <DroughtDropAlert
         data={data}
         onDrilldownToMonths={() => handleDrilldown('monthly')}
+      />
+
+      {/* ── LIVE MONTH-OVER-MONTH COMPARISON VERDICT: OK vs DROUGHT DETECTED ── */}
+      <MonthlyComparisonVerdict
+        monthlyData={data.monthlyData}
+        weeklyData={data.weeklyData}
+        areaName={data.area}
+        onViewMonthlyChart={() => handleDrilldown('monthly')}
+        onViewWeeklyChart={() => handleDrilldown('weekly')}
       />
 
       {/* 1. Metrics Grid (Territory, Area Extent, Latest NDVI, Status) */}
