@@ -179,6 +179,7 @@ export function AreaSearch({
   };
 
   const quickAreas = [
+    { geonameId: 1279228, name: 'Ahilyanagar', district: 'Ahmadnagar', state: 'Maharashtra', country: 'India', countryCode: 'IN', lat: 19.0946, lon: 74.7384 },
     { geonameId: 1259229, name: 'Pune', district: 'Pune', state: 'Maharashtra', country: 'India', countryCode: 'IN', lat: 18.5204, lon: 73.8567 },
     { geonameId: 1277333, name: 'Bengaluru', district: 'Bangalore Urban', state: 'Karnataka', country: 'India', countryCode: 'IN', lat: 12.9716, lon: 77.5946 },
     { geonameId: 1275339, name: 'Mumbai', district: 'Mumbai Suburban', state: 'Maharashtra', country: 'India', countryCode: 'IN', lat: 19.0760, lon: 72.8777 },

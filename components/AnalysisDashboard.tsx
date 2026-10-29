@@ -3,6 +3,7 @@
 import React from 'react';
 import { NdviAnalysisResponse } from '@/lib/types';
 import { MetricsGrid } from './MetricsGrid';
+import { DroughtPredictor } from './DroughtPredictor';
 import { NdviChart } from './NdviChart';
 import { YearlyTable } from './YearlyTable';
 import { VegetationInterpretation } from './VegetationInterpretation';
@@ -105,13 +106,28 @@ export function AnalysisDashboard({ data, onRefresh, isRefreshing }: AnalysisDas
       {/* 1. Metrics Grid (Territory, Area Extent, Latest NDVI, Status) */}
       <MetricsGrid data={data} />
 
-      {/* 2. Five-Year Multi-Temporal Line Graph */}
-      <NdviChart years={data.years} areaName={data.area} />
+      {/* 2. Live Drought Early Warning & Prediction System */}
+      {data.droughtPrediction && (
+        <DroughtPredictor
+          droughtPrediction={data.droughtPrediction}
+          areaName={data.area}
+          state={cleanState}
+          country={data.country}
+        />
+      )}
 
-      {/* 3. Year-Wise Data Table */}
+      {/* 3. Multi-Temporal Line & Bar Graph (Annual, Monthly, Weekly) */}
+      <NdviChart
+        years={data.years}
+        monthlyData={data.monthlyData}
+        weeklyData={data.weeklyData}
+        areaName={data.area}
+      />
+
+      {/* 4. Year-Wise Data Table */}
       <YearlyTable years={data.years} />
 
-      {/* 4. Scientific Interpretation and Ecological Threshold Guide */}
+      {/* 5. Scientific Interpretation and Ecological Threshold Guide */}
       <VegetationInterpretation />
     </div>
   );

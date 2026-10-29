@@ -1,7 +1,13 @@
 import mysql, { Pool, PoolOptions } from 'mysql2/promise';
 import crypto from 'crypto';
 import dns from 'node:dns';
-import { YearlyNdviResult, DbReport } from './types';
+import {
+  YearlyNdviResult,
+  MonthlyNdviResult,
+  WeeklyNdviResult,
+  DroughtPrediction,
+  DbReport,
+} from './types';
 
 // Force Node.js DNS to prefer IPv4 first. Prevents 'getaddrinfo ENOTFOUND' on macOS/mobile hotspot dual-stack networks.
 try {
@@ -241,6 +247,9 @@ export interface SaveAnalysisParams {
   boundarySource?: string;
   satelliteSource?: string;
   years: YearlyNdviResult[];
+  monthlyData?: MonthlyNdviResult[];
+  weeklyData?: WeeklyNdviResult[];
+  droughtPrediction?: DroughtPrediction;
 }
 
 /**
@@ -428,6 +437,9 @@ export async function saveAnalysisToDatabase(params: SaveAnalysisParams): Promis
           analysisScope: params.analysisScope,
           boundarySource: params.boundarySource,
           analyzedYears: params.years.map((y) => y.year),
+          monthlyData: params.monthlyData,
+          weeklyData: params.weeklyData,
+          droughtPrediction: params.droughtPrediction,
         }),
       ]
     );
@@ -463,6 +475,9 @@ export async function getCachedAnalysis(
 ): Promise<{
   request: any;
   years: YearlyNdviResult[];
+  monthlyData?: MonthlyNdviResult[];
+  weeklyData?: WeeklyNdviResult[];
+  droughtPrediction?: DroughtPrediction;
 } | null> {
   const db = getDbPool();
   if (!db) return null;
@@ -565,9 +580,34 @@ export async function getCachedAnalysis(
       imageCount: 0,
     }));
 
+    let monthlyData: MonthlyNdviResult[] | undefined;
+    let weeklyData: WeeklyNdviResult[] | undefined;
+    let droughtPrediction: DroughtPrediction | undefined;
+
+    try {
+      const [reportRows]: any = await db.execute(
+        `SELECT metadata_json FROM reports WHERE analysis_request_id = ? ORDER BY created_at DESC LIMIT 1`,
+        [request.id]
+      );
+      if (reportRows && reportRows.length > 0 && reportRows[0].metadata_json) {
+        const meta =
+          typeof reportRows[0].metadata_json === 'string'
+            ? JSON.parse(reportRows[0].metadata_json)
+            : reportRows[0].metadata_json;
+        monthlyData = meta?.monthlyData;
+        weeklyData = meta?.weeklyData;
+        droughtPrediction = meta?.droughtPrediction;
+      }
+    } catch (metaErr) {
+      console.warn('Cached report metadata lookup warning:', metaErr);
+    }
+
     return {
       request,
       years,
+      monthlyData,
+      weeklyData,
+      droughtPrediction,
     };
   } catch (error) {
     console.warn('NDVI cache lookup warning:', error);

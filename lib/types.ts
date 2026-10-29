@@ -13,12 +13,61 @@ export interface YearlyNdviResult {
   imageCount?: number;
 }
 
+export interface MonthlyNdviResult {
+  month: string; // e.g. "2024-11"
+  label: string; // e.g. "Nov 2024"
+  avgNdvi: number | null;
+  minNdvi: number | null;
+  maxNdvi: number | null;
+  vegetationStatus: VegetationStatus;
+}
+
+export interface WeeklyNdviResult {
+  period: string; // e.g. "Week 1", "Week 2"
+  label: string; // e.g. "Oct 1 - 7"
+  startDate: string;
+  endDate: string;
+  avgNdvi: number | null;
+  vegetationStatus: VegetationStatus;
+}
+
+export type DroughtSeverity =
+  | 'Extreme Drought'
+  | 'Severe Drought'
+  | 'Moderate Drought'
+  | 'Mild Stress'
+  | 'Normal Moisture'
+  | 'Optimal Moisture';
+
+export interface DroughtPrediction {
+  vci: number; // Vegetation Condition Index (0 - 100%)
+  droughtSeverity: DroughtSeverity;
+  droughtProbability: number; // 0 - 100%
+  ndviAnomalyPercent: number; // Deviation from 5-year mean (+/- %)
+  historicalBaselineNdvi: number; // Multi-year average
+  historicalMinDroughtNdvi: number; // Historical minimum floor
+  historicalMaxNdvi: number;
+  currentNdvi: number;
+  rainfallStressIndex: 'Critical Deficit' | 'Moderate Deficit' | 'Normal Moisture' | 'Surplus';
+  predictionSummary: string; // Plain-English scientific explanation
+  agriculturalAdvisories: string[]; // Actionable recommendations
+  historicalComparison: {
+    worstDroughtYear: number;
+    worstDroughtNdvi: number;
+    differenceFromWorst: number; // % above/below worst drought
+    isApproachingWorst: boolean;
+  };
+}
+
 export interface NdviAnalysisResponse {
   area: string;
   country: string;
   state: string;
   areaKm2: number;
   years: YearlyNdviResult[];
+  monthlyData?: MonthlyNdviResult[];
+  weeklyData?: WeeklyNdviResult[];
+  droughtPrediction?: DroughtPrediction;
   metadata?: {
     satelliteSource: string;
     boundarySource: string;

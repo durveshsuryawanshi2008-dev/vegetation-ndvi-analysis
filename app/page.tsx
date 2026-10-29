@@ -107,20 +107,20 @@ export default function HomePage() {
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-eco-900/60 border border-eco-700/60 text-eco-neon text-xs font-mono shadow-[0_0_15px_rgba(198,241,53,0.15)]">
           <Satellite className="w-3.5 h-3.5" />
           <span>
-            GLOBAL EARTH OBSERVATION &bull; SENTINEL-2 SURFACE REFLECTANCE
+            GLOBAL EARTH OBSERVATION &bull; MULTI-TEMPORAL &amp; DROUGHT PREDICTOR
           </span>
         </div>
 
         <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold font-display tracking-tight text-white leading-tight">
-          Vegetation Health &amp; NDVI <br />
+          Vegetation Health &amp; Drought <br />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-eco-neon via-emerald-400 to-teal-400">
             Multi-Temporal Intelligence
           </span>
         </h1>
 
         <p className="text-sm sm:text-base text-zinc-300 max-w-2xl mx-auto leading-relaxed">
-          High-resolution satellite analytics calculating 5-year multi-temporal vegetation health (2021 &ndash; 2025)
-          for cities worldwide. Powered by Google Earth Engine, Copernicus Sentinel-2 multispectral imagery, and high-speed database caching.
+          High-resolution satellite analytics calculating multi-temporal vegetation health (annual, monthly, weekly)
+          and predictive drought risk for cities worldwide. Powered by Google Earth Engine, Copernicus Sentinel-2 multispectral imagery, and high-speed database caching.
         </p>
 
         {healthStatus &&
