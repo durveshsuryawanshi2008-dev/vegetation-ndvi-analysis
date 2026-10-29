@@ -21,6 +21,7 @@ import {
   Activity,
   RotateCw,
   Radio,
+  AlertTriangle,
 } from 'lucide-react';
 
 const QUICK_SELECTION_REGIONS: LocationSuggestion[] = [
@@ -356,12 +357,6 @@ export default function HomePage() {
 
     const initialLoc = resolveInitialLocation();
     runAnalysis(initialLoc, { forceLive: true });
-
-    return () => {
-      if (activeControllerRef.current) {
-        activeControllerRef.current.abort();
-      }
-    };
   }, [runAnalysis]);
 
   /**
@@ -477,6 +472,40 @@ export default function HomePage() {
             isCheckingUpdates={isCheckingUpdates}
             isPollingPaused={isPollingPaused}
           />
+        ) : errorMessage ? (
+          <div className="glass-panel rounded-2xl p-8 sm:p-10 text-center max-w-2xl mx-auto space-y-5 border border-rose-500/30 bg-rose-950/20 shadow-[0_0_30px_rgba(244,63,94,0.1)]">
+            <div className="w-16 h-16 rounded-2xl bg-rose-950/50 border border-rose-700/50 flex items-center justify-center mx-auto text-rose-400">
+              <AlertTriangle className="w-8 h-8" />
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="font-display font-bold text-xl text-white">
+                Satellite Data Retrieval Notice
+              </h3>
+              <p className="text-xs sm:text-sm text-rose-200/90 font-mono max-w-md mx-auto leading-relaxed">
+                {errorMessage}
+              </p>
+            </div>
+
+            <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => activeLocation && runAnalysis(activeLocation, { forceLive: true })}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-eco-neon text-black font-mono font-bold text-xs hover:bg-eco-neon/90 transition-all shadow-[0_0_15px_rgba(198,241,53,0.3)]"
+              >
+                <RotateCw className="w-3.5 h-3.5" />
+                <span>Retry Satellite Analysis</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => runAnalysis(QUICK_SELECTION_REGIONS[0], { forceLive: true })}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-zinc-300 hover:text-white font-mono text-xs transition-all"
+              >
+                <span>Try Ahilyanagar (Drought Focus)</span>
+              </button>
+            </div>
+          </div>
         ) : (
           <div className="glass-panel rounded-2xl p-8 sm:p-12 text-center max-w-2xl mx-auto space-y-5 border-dashed border-white/15">
             <div className="w-16 h-16 rounded-2xl bg-eco-900/50 border border-eco-700/50 flex items-center justify-center mx-auto text-eco-neon shadow-[0_0_25px_rgba(198,241,53,0.2)]">
