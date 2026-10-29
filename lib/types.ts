@@ -2,6 +2,16 @@
  * TypeScript Definitions for Vegetation Analysis & NDVI application
  */
 
+import {
+  DroughtClass,
+  ConfidenceLevel,
+  DroughtPredictionResult,
+  DroughtMLModelPrediction,
+  DroughtPredictionInput,
+} from './drought-prediction-types';
+
+export * from './drought-prediction-types';
+
 export type VegetationStatus = 'Very Low' | 'Low/Moderate' | 'Healthy' | 'Very Healthy' | 'Unknown';
 
 export interface YearlyNdviResult {
@@ -50,6 +60,8 @@ export interface WeeklyNdviSeries {
   anomaly: number | null; // current - historical avg
   anomalyPercent: number | null; // (current - avg) / avg * 100
   vegetationStatus: VegetationStatus;
+  changeFromPrevWeek?: number | null;
+  changeFromPrevWeekPercent?: number | null;
 }
 
 export interface MonthlyNdviSeries {
@@ -68,6 +80,8 @@ export interface MonthlyNdviSeries {
   historicalAvgRainfallMm: number | null;
   rainfallDeficitPercent: number | null;
   vegetationStatus: VegetationStatus;
+  changeFromPrevMonthPercent?: number | null;
+  changeFromLastYearPercent?: number | null;
 }
 
 export interface SeasonalNdviSeries {
@@ -100,6 +114,20 @@ export interface DroughtPredictionEngineResult {
   agriculturalAdvisories: string[];
 }
 
+export interface MultiYearMonthRecord {
+  monthNum: number;
+  label: string;
+  valuesByYear: Record<number, number | null>;
+  fiveYearAvg: number | null;
+  currentYearValue: number | null;
+  yoyChangePercent: number | null;
+}
+
+export interface MultiYearComparison {
+  years: number[];
+  months: MultiYearMonthRecord[];
+}
+
 export interface DroughtMonitorResponse {
   area: string;
   state: string;
@@ -115,6 +143,14 @@ export interface DroughtMonitorResponse {
   currentAnomalyPercent: number | null;
   currentRainfallDeficit: number | null;
   prediction: DroughtPredictionEngineResult;
+  forecast?: DroughtPredictionResult;
+  mlForecast?: DroughtMLModelPrediction | null;
+  slopes?: {
+    slope4Weeks: number;
+    slope8Weeks: number;
+    slope12Weeks: number;
+  };
+  multiYearComparison?: MultiYearComparison;
   weeklySeries: WeeklyNdviSeries[];
   monthlySeries: MonthlyNdviSeries[];
   seasonalSeries: SeasonalNdviSeries[];

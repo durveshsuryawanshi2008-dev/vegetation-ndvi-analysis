@@ -1,5 +1,7 @@
 import { ee, initializeEarthEngine, evaluateEE } from './earthengine';
 import { determineVegetationStatus } from './ndvi';
+import { predictDrought, predictDroughtML } from './drought-prediction';
+import { DroughtPredictionInput } from './drought-prediction-types';
 import {
   WeeklyNdviSeries,
   MonthlyNdviSeries,
@@ -9,6 +11,7 @@ import {
   DroughtMonitorResponse,
   VciClassification,
   DroughtRiskCategory,
+  MultiYearComparison,
 } from './types';
 
 /**
@@ -140,17 +143,44 @@ function getTargetMonths() {
 }
 
 /**
- * Generates rolling weekly temporal windows.
+ * Generates rolling weekly temporal windows (12 weeks for 4w, 8w, 12w slope analysis).
  */
 function getTargetWeeks() {
   return [
-    { key: 'w_1', index: 1, label: 'Dec 15 - 21', start: '2024-12-15', end: '2024-12-22' },
-    { key: 'w_2', index: 2, label: 'Dec 22 - 28', start: '2024-12-22', end: '2024-12-29' },
-    { key: 'w_3', index: 3, label: 'Dec 29 - Jan 4', start: '2024-12-29', end: '2025-01-05' },
-    { key: 'w_4', index: 4, label: 'Jan 5 - 11', start: '2025-01-05', end: '2025-01-12' },
-    { key: 'w_5', index: 5, label: 'Jan 12 - 18', start: '2025-01-12', end: '2025-01-19' },
-    { key: 'w_6', index: 6, label: 'Jan 19 - 26', start: '2025-01-19', end: '2025-01-26' },
+    { key: 'w_1', index: 1, label: 'Nov 3 - 9', start: '2024-11-03', end: '2024-11-10' },
+    { key: 'w_2', index: 2, label: 'Nov 10 - 16', start: '2024-11-10', end: '2024-11-17' },
+    { key: 'w_3', index: 3, label: 'Nov 17 - 23', start: '2024-11-17', end: '2024-11-24' },
+    { key: 'w_4', index: 4, label: 'Nov 24 - 30', start: '2024-11-24', end: '2024-12-01' },
+    { key: 'w_5', index: 5, label: 'Dec 1 - 7', start: '2024-12-01', end: '2024-12-08' },
+    { key: 'w_6', index: 6, label: 'Dec 8 - 14', start: '2024-12-08', end: '2024-12-15' },
+    { key: 'w_7', index: 7, label: 'Dec 15 - 21', start: '2024-12-15', end: '2024-12-22' },
+    { key: 'w_8', index: 8, label: 'Dec 22 - 28', start: '2024-12-22', end: '2024-12-29' },
+    { key: 'w_9', index: 9, label: 'Dec 29 - Jan 4', start: '2024-12-29', end: '2025-01-05' },
+    { key: 'w_10', index: 10, label: 'Jan 5 - 11', start: '2025-01-05', end: '2025-01-12' },
+    { key: 'w_11', index: 11, label: 'Jan 12 - 18', start: '2025-01-12', end: '2025-01-19' },
+    { key: 'w_12', index: 12, label: 'Jan 19 - 26', start: '2025-01-19', end: '2025-01-26' },
   ];
+}
+
+/**
+ * Calculates linear regression slope of NDVI values over time (% change per week).
+ */
+export function calculateLinearSlope(points: number[]): number {
+  const n = points.length;
+  if (n < 2) return 0;
+  const meanY = points.reduce((a, b) => a + b, 0) / n;
+  if (meanY === 0) return 0;
+  const meanX = (n - 1) / 2;
+  let num = 0;
+  let den = 0;
+  for (let i = 0; i < n; i++) {
+    const dx = i - meanX;
+    num += dx * (points[i] - meanY);
+    den += dx * dx;
+  }
+  if (den === 0) return 0;
+  const slopeRaw = num / den;
+  return Number(((slopeRaw / meanY) * 100).toFixed(2));
 }
 
 /**
@@ -315,6 +345,17 @@ export async function computeAgriculturalDroughtSystem(
       );
     }
 
+    // Month-over-month and Year-over-year change calculations
+    let changeFromPrevMonthPercent: number | null = null;
+    if (s2Stats.avgNdvi !== null && prevMonthNdvi !== null && prevMonthNdvi > 0) {
+      changeFromPrevMonthPercent = Number((((s2Stats.avgNdvi - prevMonthNdvi) / prevMonthNdvi) * 100).toFixed(1));
+    }
+
+    let changeFromLastYearPercent: number | null = null;
+    if (s2Stats.avgNdvi !== null && sameMonthLastYearNdvi !== null && sameMonthLastYearNdvi > 0) {
+      changeFromLastYearPercent = Number((((s2Stats.avgNdvi - sameMonthLastYearNdvi) / sameMonthLastYearNdvi) * 100).toFixed(1));
+    }
+
     monthlySeries.push({
       month: `${m.year}-${m.monthNum.toString().padStart(2, '0')}`,
       label: m.label,
@@ -331,6 +372,8 @@ export async function computeAgriculturalDroughtSystem(
       historicalAvgRainfallMm,
       rainfallDeficitPercent,
       vegetationStatus: determineVegetationStatus(s2Stats.avgNdvi),
+      changeFromPrevMonthPercent,
+      changeFromLastYearPercent,
     });
 
     if (s2Stats.avgNdvi !== null) {
@@ -345,6 +388,7 @@ export async function computeAgriculturalDroughtSystem(
   const generalMax = validMonthlyNdvis.length > 0 ? Math.max(...validMonthlyNdvis) * 1.1 : 0.6;
   const generalAvg = validMonthlyNdvis.length > 0 ? validMonthlyNdvis.reduce((a, b) => a + b, 0) / validMonthlyNdvis.length : 0.38;
 
+  let prevWeekNdvi: number | null = null;
   for (const w of weeks) {
     const s2Stats = parseNdviStats(results[`s2_${w.key}`]);
     const currentNdvi = s2Stats.avgNdvi;
@@ -356,6 +400,15 @@ export async function computeAgriculturalDroughtSystem(
 
     const anomaly = currentNdvi !== null ? Number((currentNdvi - generalAvg).toFixed(4)) : null;
     const anomalyPercent = anomaly !== null && generalAvg > 0 ? Number(((anomaly / generalAvg) * 100).toFixed(1)) : null;
+
+    let changeFromPrevWeek: number | null = null;
+    let changeFromPrevWeekPercent: number | null = null;
+    if (currentNdvi !== null && prevWeekNdvi !== null) {
+      changeFromPrevWeek = Number((currentNdvi - prevWeekNdvi).toFixed(4));
+      if (prevWeekNdvi > 0) {
+        changeFromPrevWeekPercent = Number((((currentNdvi - prevWeekNdvi) / prevWeekNdvi) * 100).toFixed(1));
+      }
+    }
 
     weeklySeries.push({
       weekIndex: w.index,
@@ -370,7 +423,13 @@ export async function computeAgriculturalDroughtSystem(
       anomaly,
       anomalyPercent,
       vegetationStatus: determineVegetationStatus(currentNdvi),
+      changeFromPrevWeek,
+      changeFromPrevWeekPercent,
     });
+
+    if (currentNdvi !== null) {
+      prevWeekNdvi = currentNdvi;
+    }
   }
 
   // --- Process Seasonal Series ---
@@ -543,6 +602,81 @@ export async function computeAgriculturalDroughtSystem(
     );
   }
 
+  // --- Calculate Slopes for 4, 8, and 12 Weeks ---
+  const validNdvis = weeklySeries.map((w) => w.currentNdvi).filter((v): v is number => v !== null);
+  const slope4Weeks = calculateLinearSlope(validNdvis.slice(-4));
+  const slope8Weeks = calculateLinearSlope(validNdvis.slice(-8));
+  const slope12Weeks = calculateLinearSlope(validNdvis.slice(-12));
+
+  // --- Compile Multi-Year Monthly Comparison Matrix ---
+  const multiYearComparison: MultiYearComparison = {
+    years: [...baselineYears, 2025],
+    months: sampleMonthNumbers.map((mNum) => {
+      const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const mName = monthNames[mNum] || `M${mNum}`;
+      const valuesByYear: Record<number, number | null> = {};
+      const yearValues: number[] = [];
+
+      for (const bYear of baselineYears) {
+        const hStats = parseNdviStats(results[`hist_s2_${mNum}_${bYear}`]);
+        valuesByYear[bYear] = hStats.avgNdvi;
+        if (hStats.avgNdvi !== null) yearValues.push(hStats.avgNdvi);
+      }
+
+      const currMonth = monthlySeries.find((m) => {
+        const parts = m.month.split('-');
+        return parseInt(parts[1], 10) === mNum;
+      });
+      const currentYearVal = currMonth?.currentNdvi ?? null;
+      const currYear = currMonth ? parseInt(currMonth.month.split('-')[0], 10) : 2025;
+      valuesByYear[currYear] = currentYearVal;
+
+      const fiveYearAvg = yearValues.length > 0
+        ? Number((yearValues.reduce((a, b) => a + b, 0) / yearValues.length).toFixed(4))
+        : null;
+
+      let yoyChangePercent: number | null = null;
+      const lastYearVal = valuesByYear[2023];
+      if (currentYearVal !== null && lastYearVal !== null && lastYearVal > 0) {
+        yoyChangePercent = Number((((currentYearVal - lastYearVal) / lastYearVal) * 100).toFixed(1));
+      }
+
+      return {
+        monthNum: mNum,
+        label: mName,
+        valuesByYear,
+        fiveYearAvg,
+        currentYearValue: currentYearVal,
+        yoyChangePercent,
+      };
+    }),
+  };
+
+  // --- Run Dedicated Drought Prediction Engine (11 Features, Rules & ML) ---
+  const prevMonth = monthlySeries.length >= 2 ? monthlySeries[monthlySeries.length - 2] : latestMonth;
+
+  const predictionInput: DroughtPredictionInput = {
+    areaName,
+    monthLabel: latestMonth?.label || 'Recent',
+    currentNdvi: latestMonth?.currentNdvi ?? 0.386,
+    previousMonthNdvi: prevMonth?.currentNdvi ?? 0.395,
+    sameMonthLastYearNdvi: latestMonth?.sameMonthLastYearNdvi ?? 0.41,
+    fiveYearAvgNdvi: latestMonth?.fiveYearAvgNdvi ?? 0.39,
+    ndviSlope4Weeks: slope4Weeks,
+    ndviSlope8Weeks: slope8Weeks,
+    ndviSlope12Weeks: slope12Weeks,
+    currentVci,
+    previousMonthVci: prevMonth?.vci ?? currentVci,
+    currentRainfallMm: latestMonth?.rainfallMm ?? 25.0,
+    longTermAvgRainfallMm: latestMonth?.historicalAvgRainfallMm ?? 60.0,
+    rainfallDeficitPercent: currentRainfallDeficit,
+    temperatureAnomalyC,
+    consecutiveDeclineWeeks,
+  };
+
+  const forecast = predictDrought(predictionInput);
+  const mlForecast = predictDroughtML(predictionInput);
+
   const prediction: DroughtPredictionEngineResult = {
     riskScore,
     riskCategory,
@@ -579,6 +713,14 @@ export async function computeAgriculturalDroughtSystem(
     currentAnomalyPercent,
     currentRainfallDeficit,
     prediction,
+    forecast,
+    mlForecast,
+    slopes: {
+      slope4Weeks,
+      slope8Weeks,
+      slope12Weeks,
+    },
+    multiYearComparison,
     weeklySeries,
     monthlySeries,
     seasonalSeries,

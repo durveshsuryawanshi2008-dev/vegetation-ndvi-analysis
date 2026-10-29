@@ -8,7 +8,10 @@ import { DroughtTimeSeriesChart } from '@/components/drought/DroughtTimeSeriesCh
 import { RainfallNdviDualAxisChart } from '@/components/drought/RainfallNdviDualAxisChart';
 import { DroughtHistoricalTable } from '@/components/drought/DroughtHistoricalTable';
 import { DroughtAdvisoryPanel } from '@/components/drought/DroughtAdvisoryPanel';
-import { Loader2, AlertCircle, MapPin, Satellite, Droplets, ThermometerSun, RefreshCw } from 'lucide-react';
+import { DroughtForecastCard } from '@/components/drought/DroughtForecastCard';
+import { MultiYearNdviMatrix } from '@/components/drought/MultiYearNdviMatrix';
+import { WeeklyChangeTable } from '@/components/drought/WeeklyChangeTable';
+import { Loader2, AlertCircle, MapPin, Satellite, Droplets, ThermometerSun, RefreshCw, Layers, Calendar, Activity, Sparkles, Brain } from 'lucide-react';
 
 // Popular Maharashtra districts for quick access
 const QUICK_DISTRICTS = [
@@ -118,6 +121,7 @@ export default function DroughtMonitorPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState('');
+  const [activeSection, setActiveSection] = useState<'all' | 'forecast' | 'multiyear' | 'weekly' | 'charts' | 'table'>('all');
 
   const fetchDroughtData = useCallback(async (area: string, lat?: number, lon?: number) => {
     setIsLoading(true);
@@ -275,52 +279,111 @@ export default function DroughtMonitorPage() {
               </span>
             </div>
 
-            {/* Risk banner */}
-            <DroughtRiskBanner
-              prediction={data.prediction}
-              areaName={data.area}
-              state={data.state}
-              country={data.country}
-            />
-
-            {/* KPIs */}
-            {(() => {
-              const latestMonth = data.monthlySeries?.[data.monthlySeries.length - 1];
-              return (
-                <DroughtKPIs
-                  currentNdvi={data.currentNdvi}
-                  currentVci={data.currentVci}
-                  vciClassification={data.prediction.vciClassification}
-                  currentAnomaly={data.currentAnomaly}
-                  currentAnomalyPercent={data.currentAnomalyPercent}
-                  rainfallMm={latestMonth?.rainfallMm ?? null}
-                  historicalAvgRainfallMm={latestMonth?.historicalAvgRainfallMm ?? null}
-                  rainfallDeficitPercent={data.currentRainfallDeficit}
-                />
-              );
-            })()}
-
-            {/* Time series + dual-axis charts side by side on large screens */}
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <DroughtTimeSeriesChart
-                weeklySeries={data.weeklySeries}
-                monthlySeries={data.monthlySeries}
-                seasonalSeries={data.seasonalSeries}
-                yearlySeries={data.yearlySeries}
-                areaName={data.area}
-              />
-              <RainfallNdviDualAxisChart monthlySeries={data.monthlySeries} />
+            {/* View Filter Navigation Bar */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none border-b border-white/[0.06] pt-1">
+              {[
+                { id: 'all', label: 'All Indicators', icon: Sparkles },
+                { id: 'forecast', label: 'Drought Risk Forecast', icon: Brain },
+                { id: 'multiyear', label: 'Multi-Year Matrix', icon: Layers },
+                { id: 'weekly', label: 'Weekly Changes', icon: Activity },
+                { id: 'charts', label: 'Time Series & Rainfall', icon: Droplets },
+                { id: 'table', label: 'Monthly Table & Advisories', icon: Calendar },
+              ].map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => setActiveSection(id as any)}
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-mono whitespace-nowrap transition-all ${
+                    activeSection === id
+                      ? 'bg-eco-neon text-[#070C08] font-bold shadow-[0_0_15px_rgba(198,241,53,0.25)]'
+                      : 'bg-white/[0.03] text-zinc-400 border border-white/[0.06] hover:text-white hover:bg-white/[0.06]'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {label}
+                </button>
+              ))}
             </div>
 
-            {/* Historical table */}
-            <DroughtHistoricalTable monthlySeries={data.monthlySeries} />
+            {/* Section 1: Forecast & Risk Card */}
+            {(activeSection === 'all' || activeSection === 'forecast') && (
+              <>
+                {data.forecast ? (
+                  <DroughtForecastCard
+                    forecast={data.forecast}
+                    mlForecast={data.mlForecast}
+                    slopes={data.slopes}
+                    areaName={data.area}
+                  />
+                ) : (
+                  <DroughtRiskBanner
+                    prediction={data.prediction}
+                    areaName={data.area}
+                    state={data.state}
+                    country={data.country}
+                  />
+                )}
 
-            {/* Advisory panel */}
-            <DroughtAdvisoryPanel
-              riskCategory={data.prediction.riskCategory}
-              advisories={data.prediction.agriculturalAdvisories}
-              area={data.area}
-            />
+                {/* KPIs */}
+                {(() => {
+                  const latestMonth = data.monthlySeries?.[data.monthlySeries.length - 1];
+                  return (
+                    <DroughtKPIs
+                      currentNdvi={data.currentNdvi}
+                      currentVci={data.currentVci}
+                      vciClassification={data.prediction.vciClassification}
+                      currentAnomaly={data.currentAnomaly}
+                      currentAnomalyPercent={data.currentAnomalyPercent}
+                      rainfallMm={latestMonth?.rainfallMm ?? null}
+                      historicalAvgRainfallMm={latestMonth?.historicalAvgRainfallMm ?? null}
+                      rainfallDeficitPercent={data.currentRainfallDeficit}
+                    />
+                  );
+                })()}
+              </>
+            )}
+
+            {/* Section 2: Multi-Year NDVI Comparison Matrix */}
+            {(activeSection === 'all' || activeSection === 'multiyear') && data.multiYearComparison && (
+              <MultiYearNdviMatrix
+                comparison={data.multiYearComparison}
+                areaName={data.area}
+              />
+            )}
+
+            {/* Section 3: Weekly Changes & Slopes Table */}
+            {(activeSection === 'all' || activeSection === 'weekly') && (
+              <WeeklyChangeTable
+                weeklySeries={data.weeklySeries}
+                areaName={data.area}
+              />
+            )}
+
+            {/* Section 4: Time series + dual-axis charts side by side */}
+            {(activeSection === 'all' || activeSection === 'charts') && (
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <DroughtTimeSeriesChart
+                  weeklySeries={data.weeklySeries}
+                  monthlySeries={data.monthlySeries}
+                  seasonalSeries={data.seasonalSeries}
+                  yearlySeries={data.yearlySeries}
+                  areaName={data.area}
+                />
+                <RainfallNdviDualAxisChart monthlySeries={data.monthlySeries} />
+              </div>
+            )}
+
+            {/* Section 5: Monthly Historical table & Advisories */}
+            {(activeSection === 'all' || activeSection === 'table') && (
+              <div className="space-y-6">
+                <DroughtHistoricalTable monthlySeries={data.monthlySeries} />
+
+                <DroughtAdvisoryPanel
+                  riskCategory={data.prediction.riskCategory}
+                  advisories={data.prediction.agriculturalAdvisories}
+                  area={data.area}
+                />
+              </div>
+            )}
 
             {/* Metadata footer */}
             {data.metadata && (
