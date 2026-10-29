@@ -1,9 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { NdviAnalysisResponse } from '@/lib/types';
 import { MetricsGrid } from './MetricsGrid';
 import { DroughtPredictor } from './DroughtPredictor';
+import { DroughtDropAlert } from './DroughtDropAlert';
 import { NdviChart } from './NdviChart';
 import { YearlyTable } from './YearlyTable';
 import { VegetationInterpretation } from './VegetationInterpretation';
@@ -16,8 +17,18 @@ interface AnalysisDashboardProps {
 }
 
 export function AnalysisDashboard({ data, onRefresh, isRefreshing }: AnalysisDashboardProps) {
+  const [chartGranularity, setChartGranularity] = useState<'yearly' | 'monthly' | 'weekly'>('yearly');
+  const chartSectionRef = useRef<HTMLDivElement>(null);
+
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleDrilldown = (target: 'monthly' | 'weekly' = 'monthly') => {
+    setChartGranularity(target);
+    if (chartSectionRef.current) {
+      chartSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   };
 
   // Clean state name if it contains numeric codes or is empty
@@ -103,6 +114,12 @@ export function AnalysisDashboard({ data, onRefresh, isRefreshing }: AnalysisDas
         </div>
       ) : null}
 
+      {/* ── CRITICAL NOTIFICATION: Vegetation Drop Alert with Historical Precedent ── */}
+      <DroughtDropAlert
+        data={data}
+        onDrilldownToMonths={() => handleDrilldown('monthly')}
+      />
+
       {/* 1. Metrics Grid (Territory, Area Extent, Latest NDVI, Status) */}
       <MetricsGrid data={data} />
 
@@ -116,16 +133,23 @@ export function AnalysisDashboard({ data, onRefresh, isRefreshing }: AnalysisDas
         />
       )}
 
-      {/* 3. Multi-Temporal Line & Bar Graph (Annual, Monthly, Weekly) */}
-      <NdviChart
-        years={data.years}
-        monthlyData={data.monthlyData}
-        weeklyData={data.weeklyData}
-        areaName={data.area}
-      />
+      {/* 3. Multi-Temporal Line & Bar Graph (Touch to Drilldown Year -> Month -> Week) */}
+      <div ref={chartSectionRef} className="scroll-mt-6">
+        <NdviChart
+          years={data.years}
+          monthlyData={data.monthlyData}
+          weeklyData={data.weeklyData}
+          areaName={data.area}
+          externalGranularity={chartGranularity}
+          onGranularityChange={setChartGranularity}
+        />
+      </div>
 
-      {/* 4. Year-Wise Data Table */}
-      <YearlyTable years={data.years} />
+      {/* 4. Year-Wise Data Table with Touch Drilldown to Months */}
+      <YearlyTable
+        years={data.years}
+        onSelectYear={(year) => handleDrilldown('monthly')}
+      />
 
       {/* 5. Scientific Interpretation and Ecological Threshold Guide */}
       <VegetationInterpretation />

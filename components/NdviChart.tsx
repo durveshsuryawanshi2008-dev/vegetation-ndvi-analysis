@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ResponsiveContainer,
   LineChart,
@@ -27,6 +27,9 @@ import {
   Calendar,
   CalendarDays,
   Clock,
+  ArrowRight,
+  ChevronRight,
+  RotateCcw,
 } from 'lucide-react';
 
 interface NdviChartProps {
@@ -34,6 +37,8 @@ interface NdviChartProps {
   monthlyData?: MonthlyNdviResult[];
   weeklyData?: WeeklyNdviResult[];
   areaName: string;
+  externalGranularity?: 'yearly' | 'monthly' | 'weekly';
+  onGranularityChange?: (g: 'yearly' | 'monthly' | 'weekly') => void;
 }
 
 export function NdviChart({
@@ -41,9 +46,31 @@ export function NdviChart({
   monthlyData = [],
   weeklyData = [],
   areaName,
+  externalGranularity,
+  onGranularityChange,
 }: NdviChartProps) {
-  const [granularity, setGranularity] = useState<'yearly' | 'monthly' | 'weekly'>('yearly');
+  const [internalGranularity, setInternalGranularity] = useState<'yearly' | 'monthly' | 'weekly'>('yearly');
   const [chartMode, setChartMode] = useState<'line' | 'bar'>('line');
+  const [selectedYearLabel, setSelectedYearLabel] = useState<string | null>(null);
+
+  // Sync external granularity if provided
+  useEffect(() => {
+    if (externalGranularity) {
+      setInternalGranularity(externalGranularity);
+    }
+  }, [externalGranularity]);
+
+  const granularity = externalGranularity || internalGranularity;
+
+  const setGranularity = (g: 'yearly' | 'monthly' | 'weekly') => {
+    setInternalGranularity(g);
+    if (onGranularityChange) {
+      onGranularityChange(g);
+    }
+  };
+
+  const hasMonthly = monthlyData.length > 0;
+  const hasWeekly = weeklyData.length > 0;
 
   // Format data based on selected temporal granularity
   let rawDataset: Array<{
@@ -54,7 +81,7 @@ export function NdviChart({
     status: string;
   }> = [];
 
-  if (granularity === 'monthly' && monthlyData.length > 0) {
+  if (granularity === 'monthly' && hasMonthly) {
     rawDataset = monthlyData.map((m) => ({
       label: m.label,
       avgNdvi: m.avgNdvi !== null ? Number(m.avgNdvi.toFixed(4)) : null,
@@ -62,7 +89,7 @@ export function NdviChart({
       maxNdvi: m.maxNdvi !== null ? Number(m.maxNdvi.toFixed(4)) : null,
       status: m.vegetationStatus,
     }));
-  } else if (granularity === 'weekly' && weeklyData.length > 0) {
+  } else if (granularity === 'weekly' && hasWeekly) {
     rawDataset = weeklyData.map((w) => ({
       label: w.label,
       avgNdvi: w.avgNdvi !== null ? Number(w.avgNdvi.toFixed(4)) : null,
@@ -100,6 +127,25 @@ export function NdviChart({
       periodChange,
     };
   });
+
+  // Handle touch / click drill-down
+  const handleDataPointClick = (dataPoint: any) => {
+    if (!dataPoint) return;
+    const label = dataPoint.label || dataPoint.activeLabel;
+
+    if (granularity === 'yearly') {
+      // Touch a year -> switch to monthly!
+      setSelectedYearLabel(label);
+      if (hasMonthly) {
+        setGranularity('monthly');
+      }
+    } else if (granularity === 'monthly') {
+      // Touch a month -> switch to weekly!
+      if (hasWeekly) {
+        setGranularity('weekly');
+      }
+    }
+  };
 
   // Calculate statistical summary metrics for active view
   const validData = chartData.filter((d) => d.avgNdvi !== null);
@@ -152,21 +198,18 @@ export function NdviChart({
 
           <div className="space-y-1 pt-1">
             <div className="flex items-center justify-between">
-              <span className="text-eco-neon font-semibold">Mean NDVI:</span>
-              <span className="font-bold text-white">
-                {dataPoint.avgNdvi !== null ? dataPoint.avgNdvi : 'No Data'}
+              <span className="text-zinc-400">Average NDVI:</span>
+              <span className="font-bold text-eco-neon text-sm">
+                {dataPoint.avgNdvi !== null ? dataPoint.avgNdvi.toFixed(4) : 'No Data'}
               </span>
             </div>
-            {dataPoint.maxNdvi !== null && (
-              <div className="flex items-center justify-between text-zinc-400">
-                <span className="text-emerald-400">Maximum NDVI:</span>
-                <span>{dataPoint.maxNdvi}</span>
-              </div>
-            )}
-            {dataPoint.minNdvi !== null && (
-              <div className="flex items-center justify-between text-zinc-400">
-                <span className="text-cyan-400">Minimum NDVI:</span>
-                <span>{dataPoint.minNdvi}</span>
+
+            {dataPoint.minNdvi !== null && dataPoint.maxNdvi !== null && (
+              <div className="flex items-center justify-between text-zinc-400 text-[11px]">
+                <span>Min &bull; Max Range:</span>
+                <span className="font-medium text-zinc-200">
+                  [{dataPoint.minNdvi.toFixed(2)} &ndash; {dataPoint.maxNdvi.toFixed(2)}]
+                </span>
               </div>
             )}
 
@@ -197,6 +240,18 @@ export function NdviChart({
                 {dataPoint.status}
               </span>
             </div>
+
+            {/* Drilldown Hint */}
+            <div className="pt-2 text-[10px] text-eco-neon font-mono flex items-center gap-1 border-t border-white/5">
+              <Sparkles className="w-3 h-3" />
+              <span>
+                {granularity === 'yearly'
+                  ? '👆 Touch to view Monthly & Weekly breakdown'
+                  : granularity === 'monthly'
+                  ? '👆 Touch to view Weekly breakdown'
+                  : 'Weekly Pulse Data'}
+              </span>
+            </div>
           </div>
         </div>
       );
@@ -204,12 +259,9 @@ export function NdviChart({
     return null;
   };
 
-  const hasMonthly = monthlyData.length > 0;
-  const hasWeekly = weeklyData.length > 0;
-
   return (
     <div className="glass-panel rounded-2xl p-5 sm:p-6 space-y-5">
-      {/* Header Bar with Granularity and Chart Mode Toggles */}
+      {/* ── Top Header Bar with Mode Toggles ───────────────────────────── */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/5 pb-4">
         <div>
           <h3 className="font-display font-bold text-base sm:text-lg text-white flex items-center gap-2">
@@ -218,16 +270,16 @@ export function NdviChart({
               {granularity === 'yearly'
                 ? '5-Year Multi-Temporal NDVI Comparison'
                 : granularity === 'monthly'
-                ? 'Monthly Seasonal NDVI Trajectory'
+                ? `Monthly Seasonal NDVI Trajectory ${selectedYearLabel ? `(${selectedYearLabel})` : ''}`
                 : 'Rolling Weekly Live Pulse NDVI'}
             </span>
           </h3>
           <p className="text-xs text-zinc-400 font-mono">
             {areaName} &bull;{' '}
             {granularity === 'yearly'
-              ? 'Calendar Years 2021 – 2025 (Annual Multi-Temporal)'
+              ? 'Calendar Years 2021 – 2025 (Touch any year bar to view monthly & weekly breakdown)'
               : granularity === 'monthly'
-              ? 'Monthly Seasonal Dynamics (Sentinel-2 Harmonized)'
+              ? 'Monthly Seasonal Dynamics (Touch any month to view weekly breakdown)'
               : 'Rolling Weekly Observations (Telemetry Early Warning)'}
           </p>
         </div>
@@ -238,7 +290,10 @@ export function NdviChart({
           <div className="flex items-center gap-1 p-1 rounded-xl bg-white/[0.04] border border-white/10 font-mono text-xs">
             <button
               type="button"
-              onClick={() => setGranularity('yearly')}
+              onClick={() => {
+                setSelectedYearLabel(null);
+                setGranularity('yearly');
+              }}
               className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all ${
                 granularity === 'yearly'
                   ? 'bg-eco-neon text-black font-semibold shadow-[0_0_12px_rgba(198,241,53,0.3)]'
@@ -258,9 +313,8 @@ export function NdviChart({
                   ? 'bg-eco-neon text-black font-semibold shadow-[0_0_12px_rgba(198,241,53,0.3)]'
                   : hasMonthly
                   ? 'text-zinc-400 hover:text-white'
-                  : 'text-zinc-600 opacity-40 cursor-not-allowed'
+                  : 'opacity-40 cursor-not-allowed text-zinc-600'
               }`}
-              title={hasMonthly ? 'View monthly composite trajectory' : 'Monthly data computing...'}
             >
               <CalendarDays className="w-3.5 h-3.5" />
               <span>Monthly</span>
@@ -275,47 +329,129 @@ export function NdviChart({
                   ? 'bg-eco-neon text-black font-semibold shadow-[0_0_12px_rgba(198,241,53,0.3)]'
                   : hasWeekly
                   ? 'text-zinc-400 hover:text-white'
-                  : 'text-zinc-600 opacity-40 cursor-not-allowed'
+                  : 'opacity-40 cursor-not-allowed text-zinc-600'
               }`}
-              title={hasWeekly ? 'View rolling weekly pulse' : 'Weekly data computing...'}
             >
               <Clock className="w-3.5 h-3.5" />
               <span>Weekly</span>
             </button>
           </div>
 
-          {/* Line vs Bar View Switcher */}
+          {/* Chart Mode Toggle */}
           <div className="flex items-center gap-1 p-1 rounded-xl bg-white/[0.04] border border-white/10 font-mono text-xs">
             <button
               type="button"
               onClick={() => setChartMode('line')}
               className={`p-1.5 rounded-lg transition-all ${
                 chartMode === 'line'
-                  ? 'bg-eco-neon text-black shadow-[0_0_12px_rgba(198,241,53,0.3)]'
+                  ? 'bg-white/10 text-eco-neon border border-eco-neon/30'
                   : 'text-zinc-400 hover:text-white'
               }`}
               title="Line Chart View"
             >
-              <Activity className="w-3.5 h-3.5" />
+              <Activity className="w-4 h-4" />
             </button>
-
             <button
               type="button"
               onClick={() => setChartMode('bar')}
               className={`p-1.5 rounded-lg transition-all ${
                 chartMode === 'bar'
-                  ? 'bg-eco-neon text-black shadow-[0_0_12px_rgba(198,241,53,0.3)]'
+                  ? 'bg-white/10 text-eco-neon border border-eco-neon/30'
                   : 'text-zinc-400 hover:text-white'
               }`}
               title="Bar Chart View"
             >
-              <BarChart3 className="w-3.5 h-3.5" />
+              <BarChart3 className="w-4 h-4" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Statistical Comparison Cards */}
+      {/* ── Interactive Breadcrumbs & Touch Drilldown Banner ─────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 rounded-xl bg-white/[0.02] border border-white/10 text-xs font-mono">
+        {/* Breadcrumb Steps */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-zinc-500 uppercase text-[10px]">Active View:</span>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedYearLabel(null);
+              setGranularity('yearly');
+            }}
+            className={`px-2 py-0.5 rounded border transition-all ${
+              granularity === 'yearly'
+                ? 'bg-eco-neon/20 border-eco-neon text-eco-neon font-bold'
+                : 'bg-white/[0.03] border-white/10 text-zinc-300 hover:text-white'
+            }`}
+          >
+            All Years (2021&ndash;2025)
+          </button>
+
+          <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
+
+          <button
+            type="button"
+            onClick={() => setGranularity('monthly')}
+            disabled={!hasMonthly}
+            className={`px-2 py-0.5 rounded border transition-all ${
+              granularity === 'monthly'
+                ? 'bg-eco-neon/20 border-eco-neon text-eco-neon font-bold'
+                : hasMonthly
+                ? 'bg-white/[0.03] border-white/10 text-zinc-300 hover:text-white'
+                : 'opacity-40 text-zinc-600'
+            }`}
+          >
+            Monthly NDVI Index
+          </button>
+
+          <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
+
+          <button
+            type="button"
+            onClick={() => setGranularity('weekly')}
+            disabled={!hasWeekly}
+            className={`px-2 py-0.5 rounded border transition-all ${
+              granularity === 'weekly'
+                ? 'bg-eco-neon/20 border-eco-neon text-eco-neon font-bold'
+                : hasWeekly
+                ? 'bg-white/[0.03] border-white/10 text-zinc-300 hover:text-white'
+                : 'opacity-40 text-zinc-600'
+            }`}
+          >
+            Weekly NDVI Pulse
+          </button>
+        </div>
+
+        {/* Touch Hint / Reset */}
+        <div className="flex items-center gap-2">
+          {granularity !== 'yearly' && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedYearLabel(null);
+                setGranularity('yearly');
+              }}
+              className="flex items-center gap-1 text-[11px] text-zinc-400 hover:text-white transition-colors"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Reset to Annual</span>
+            </button>
+          )}
+
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-eco-950/50 border border-eco-500/40 text-eco-neon text-[11px]">
+            <Sparkles className="w-3 h-3 animate-pulse" />
+            <span>
+              {granularity === 'yearly'
+                ? '👆 Touch any Year bar to drill down into Monthly & Weekly'
+                : granularity === 'monthly'
+                ? '👆 Touch any Month to drill down into Weekly pulse'
+                : 'Weekly Pulse Active'}
+            </span>
+          </span>
+        </div>
+      </div>
+
+      {/* ── Summary Stats Pills ────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 font-mono">
         <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3 space-y-1">
           <span className="text-[10px] text-zinc-400 uppercase tracking-wider flex items-center gap-1">
@@ -390,13 +526,18 @@ export function NdviChart({
         </div>
       </div>
 
-      {/* Chart Canvas */}
+      {/* ── Chart Canvas with Click / Touch Handlers ─────────────────── */}
       <div className="h-[320px] sm:h-[380px] w-full pt-2">
         <ResponsiveContainer width="100%" height="100%">
           {chartMode === 'line' ? (
             <LineChart
               data={chartData}
               margin={{ top: 20, right: 30, left: -10, bottom: 5 }}
+              onClick={(state: any) => {
+                if (state && state.activePayload && state.activePayload.length > 0) {
+                  handleDataPointClick(state.activePayload[0].payload);
+                }
+              }}
             >
               <CartesianGrid
                 strokeDasharray="3 3"
@@ -470,12 +611,14 @@ export function NdviChart({
                   stroke: '#070C08',
                   strokeWidth: 2,
                   r: 5,
+                  cursor: 'pointer',
                 }}
                 activeDot={{
                   r: 8,
                   fill: '#C6F135',
                   stroke: '#FFFFFF',
                   strokeWidth: 2,
+                  cursor: 'pointer',
                 }}
                 connectNulls
               />
@@ -508,6 +651,11 @@ export function NdviChart({
             <BarChart
               data={chartData}
               margin={{ top: 20, right: 30, left: -10, bottom: 5 }}
+              onClick={(state: any) => {
+                if (state && state.activePayload && state.activePayload.length > 0) {
+                  handleDataPointClick(state.activePayload[0].payload);
+                }
+              }}
             >
               <CartesianGrid
                 strokeDasharray="3 3"
@@ -559,11 +707,13 @@ export function NdviChart({
                 dataKey="avgNdvi"
                 radius={[8, 8, 0, 0]}
                 maxBarSize={60}
+                cursor="pointer"
               >
                 {chartData.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
                     fill={getStatusColor(entry.avgNdvi)}
+                    className="hover:opacity-80 transition-opacity cursor-pointer"
                   />
                 ))}
               </Bar>
@@ -572,28 +722,30 @@ export function NdviChart({
         </ResponsiveContainer>
       </div>
 
-      {/* Legend & Scientific Notation Footer */}
-      <div className="pt-2 text-[11px] font-mono text-zinc-500 flex flex-wrap items-center justify-between gap-3 border-t border-white/5">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-0.5 bg-eco-neon inline-block" />
-            <span>Mean NDVI</span>
-          </div>
+      {/* Chart Footer Indicator */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-white/5 text-[11px] font-mono text-zinc-400">
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-eco-neon inline-block" />
+            <span>Average NDVI</span>
+          </span>
           {granularity !== 'weekly' && (
             <>
-              <div className="flex items-center gap-1.5">
-                <span className="w-3 h-0.5 bg-emerald-400 border-t border-dashed inline-block" />
-                <span>Max Peak</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-3 h-0.5 bg-cyan-400 border-t border-dashed inline-block" />
-                <span>Min Baseline</span>
-              </div>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block" />
+                <span>Peak Ceiling</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-sky-400 inline-block" />
+                <span>Trough Floor</span>
+              </span>
             </>
           )}
         </div>
 
-        <span>Normalized Difference Vegetation Index Formula: (B8 - B4) / (B8 + B4)</span>
+        <span className="text-zinc-500">
+          👆 Click or touch any bar / point to drill down into Monthly &amp; Weekly data
+        </span>
       </div>
     </div>
   );
